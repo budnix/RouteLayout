@@ -1,7 +1,7 @@
 // Edytor 2D na Canvas: pan/zoom (mysz, dotyk, pinch), przeciąganie elementów,
 // snap do otwartych portów, "kursor" – aktywny otwarty port do auto-rysowania.
 
-import { BY_ID, GAUGE } from './catalog.js';
+import { BY_ID, GAUGE, geoOf } from './catalog.js';
 import { SCENERY, drawScenery2D } from './scenery.js';
 import { Layout, norm } from './layout.js';
 
@@ -130,6 +130,7 @@ export class Editor2D {
     this.emit('select');
   }
   rotateSelected(deg) {
+    if (this.selected && BY_ID[this.selected.id].turntable) { this.layout.setBridge(this.selected, (this.selected.bridge || 0) + deg); return; }
     if (this.selectedScenery) this.layout.moveScenery(this.selectedScenery, this.selectedScenery.x, this.selectedScenery.y, this.selectedScenery.rot + deg);
     else if (this.selected) this.layout.rotate(this.selected, deg);
   }
@@ -160,8 +161,10 @@ export class Editor2D {
     const tol = 14 / this.view.scale; // ~14 px
     const port = this.nearestOpenPort(w, tol);
     const piece = this.layout.hitTest(w.x, w.y, Math.max(tol, 10));
-    const scen = !port && !piece ? this.layout.hitScenery(w.x, w.y) : null;
-    this.drag = { start: p, last: p, moved: false, piece: port ? null : piece, scen, port, ox: this.view.ox, oy: this.view.oy, px: piece?.x ?? scen?.x, py: piece?.y ?? scen?.y };
+    const rim = !port ? this.hitRim(w, tol) : null;
+    const scen = !port && !piece && !rim ? this.layout.hitScenery(w.x, w.y) : null;
+    this.drag = { start: p, last: p, moved: false, piece: port || rim ? null : piece, scen, port, rim, ox: this.view.ox, oy: this.view.oy, px: piece?.x ?? scen?.x, py: piece?.y ?? scen?.y };
+    if (rim) { this.selected = rim.tt; this.selectedScenery = null; this.emit('select'); this.draw(); return; }
     if (piece && !port) { this.selected = piece; this.selectedScenery = null; this.emit('select'); this.draw(); }
     else if (scen) { this.selectedScenery = scen; this.selected = null; this.emit('select'); this.draw(); }
   }
@@ -211,6 +214,7 @@ export class Editor2D {
     }
     if (!d.moved) {
       // tap
+      if (d.rim) { const port = this.layout.addRimPort(d.rim.tt, d.rim.angle); if (port) this.setCursor(port); return; }
       if (d.port) { this.setCursor(d.port); this.selected = d.port.piece; this.selectedScenery = null; this.emit('select'); }
       else if (!d.piece && !d.scen) { this.selected = null; this.selectedScenery = null; this.emit('select'); this.draw(); }
       return;
@@ -234,6 +238,16 @@ export class Editor2D {
     const p = this.pos(e);
     if (e.ctrlKey || e.metaKey || !e.shiftKey) this.zoomAt(p.x, p.y, Math.exp(-e.deltaY * 0.0015));
     else { this.view.ox -= e.deltaX; this.view.oy -= e.deltaY; this.draw(); }
+  }
+
+  /** Obrzeże obrotnicy pod punktem: { tt, angle } (kąt w układzie świata). */
+  hitRim(w, tol) {
+    for (const tt of this.layout.pieces) {
+      if (!BY_ID[tt.id].turntable) continue;
+      const dx = w.x - tt.x, dy = w.y - tt.y, d = Math.hypot(dx, dy);
+      if (Math.abs(d - tt.r) <= Math.max(tol, 10)) return { tt, angle: Math.round(Math.atan2(dy, dx) * 180 / Math.PI) };
+    }
+    return null;
   }
 
   nearestOpenPort(w, tol) {
@@ -285,6 +299,15 @@ export class Editor2D {
 
     // sceneria – warstwa terenu (drogi, stawy, wzgórza, perony) pod torami
     for (const it of this.layout.scenery) if (SCENERY[it.type].layer === 'ground') drawScenery2D(ctx, it, it === this.selectedScenery);
+
+    // obrotnice: niecka i obrzeże
+    for (const tt of this.layout.pieces) {
+      if (!BY_ID[tt.id].turntable) continue;
+      ctx.beginPath(); ctx.arc(tt.x, tt.y, tt.r, 0, Math.PI * 2);
+      ctx.fillStyle = getCSS('--c-pit', '#8d8a84'); ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(tt.x, tt.y, tt.r - 6, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
 
     const segs = this.layout.worldSegments(8);
     const tracePath = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); };
@@ -340,10 +363,17 @@ export class Editor2D {
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       for (const piece of this.layout.pieces) {
         const def = BY_ID[piece.id];
-        const sg = def.geo.segments[0];
+        const sg = geoOf(piece).segments[0];
         const mid = sg.type === 'line' ? { x: (sg.x1 + sg.x2) / 2, y: (sg.y1 + sg.y2) / 2 } : (() => { const a = d2r((sg.a0 + sg.a1) / 2); return { x: sg.cx + sg.r * Math.cos(a), y: sg.cy + sg.r * Math.sin(a) }; })();
         const wpt = Layout.localToWorld(piece, mid.x, mid.y - 22);
         ctx.fillText(def.code, wpt.x, wpt.y);
+        if (piece.z || piece.dz) {
+          const z1 = (piece.z || 0) + (piece.dz || 0);
+          const wz = Layout.localToWorld(piece, mid.x, mid.y + 24);
+          ctx.fillStyle = '#1d6fd6';
+          ctx.fillText(piece.dz ? `${Math.round(piece.z)}→${Math.round(z1)} mm` : `${Math.round(piece.z)} mm`, wz.x, wz.y);
+          ctx.fillStyle = 'rgba(0,0,0,0.75)';
+        }
       }
     }
 

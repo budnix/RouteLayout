@@ -10,7 +10,7 @@
 // zaczyna się obok bieżącej pozy, kandydatem staje się rozjazd WL/WR, a tamta
 // kreska jest dalej dopasowywana od portu odgałęzienia.
 
-import { BY_ID, sampleSegment } from './catalog.js';
+import { BY_ID, geoOf, sampleSegment } from './catalog.js';
 import { Layout, norm } from './layout.js';
 import { segment, idealPath, pathToPieces, chain, decomposeStraight, TURNOUT_LEN } from './normalize.js';
 
@@ -143,7 +143,7 @@ export function fitGreedy(rawStrokes, layout) {
 
   const addPiece = (piece) => {
     pieces.push(piece);
-    const n = BY_ID[piece.id].geo.ports.length;
+    const n = geoOf(piece).ports.length;
     for (let i = 0; i < n; i++) openPorts.push(Layout.worldPort(piece, i));
   };
   const removeOpenNear = (x, y) => { openPorts = openPorts.filter((p) => Math.hypot(p.x - x, p.y - y) > 1); };
@@ -384,7 +384,7 @@ export function fitNormalized(rawStrokes, layout) {
       const att = findAttach(stroke, openPorts);
       if (att) {
         if (att.reverse) reverseStroke(stroke);
-        pose = { x: att.port.x, y: att.port.y, a: att.port.a }; snapStart = false;
+        pose = { x: att.port.x, y: att.port.y, a: att.port.a, z: att.port.z || 0 }; snapStart = false;
         from = nearest(stroke, pose.x, pose.y, 0, 0, 60).idx;
         openPorts = openPorts.filter((p) => Math.hypot(p.x - pose.x, p.y - pose.y) > 1);
       } else {
@@ -409,8 +409,9 @@ export function fitNormalized(rawStrokes, layout) {
       list.push(...part); cur = c.end;
     }
     const built = chain(list, pose).pieces;
+    for (const b of built) b.z = pose.z || 0;
     pieces.push(...built);
-    for (const piece of built) for (let i = 0; i < BY_ID[piece.id].geo.ports.length; i++) openPorts.push(Layout.worldPort(piece, i));
+    for (const piece of built) for (let i = 0; i < geoOf(piece).ports.length; i++) openPorts.push(Layout.worldPort(piece, i));
   }
   return { pieces, strokesUsed: strokes.length };
 }

@@ -17,6 +17,7 @@
   --c-rail: #444;
   --c-aid-grid: rgba(30, 120, 220, 0.32);
   --c-sketch: rgba(255, 122, 26, 0.55);
+  --c-pit: #8d8a84;
   --topbar-h: 52px;
   --palette-h: 196px;
   --sat: env(safe-area-inset-top, 0px);

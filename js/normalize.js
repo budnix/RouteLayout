@@ -329,7 +329,7 @@ export function chain(list, startPose) {
   const pieces = [];
   for (const { id, entry } of list) {
     const p = Layout.poseFor(id, entry, { x: pose.x, y: pose.y, a: pose.a });
-    const piece = { id, x: p.x, y: p.y, rot: p.rot };
+    const piece = { id, x: p.x, y: p.y, rot: p.rot, z: startPose.z || 0 };
     pieces.push(piece);
     const exitIdx = BY_ID[id].group === 'turnout' ? (entry === 0 ? 1 : 0) : (entry === 0 ? 1 : 0);
     const e = Layout.worldPort(piece, exitIdx);

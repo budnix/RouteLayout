@@ -15,6 +15,8 @@ A web app (HTML5, ES modules, Canvas 2D + three.js) for designing H0 model railw
 - **Sketch mode**: draw the track path freehand with a finger or mouse, press *Finish drawing* and the app fits real PIKO pieces to it — straights, curves and turnouts where a second stroke branches off. Optional guide grid with configurable spacing
 - Drag pieces with a finger or mouse; nearby track ends snap together
 - **3D preview** with rails (16.5 mm gauge), sleepers, ballast, baseboard and shadows — rendered on demand to save battery
+- **Turntable** as a track element: tap anywhere on the rim to create a connection there (1° steps), drag a track onto the rim and it snaps radially, rotate the bridge, set the diameter
+- **Heights**: every piece has a start height and a grade; set *height* to lift a whole connected group, *grade %* to build a ramp (pieces downstream rise with it). Ends only connect at matching heights — a helix shows its gap honestly. In 3D the track follows the profile with piers under viaducts; a track through a hill becomes a tunnel
 - **Scenery**: trees, houses, station, warehouse, church, roads, platforms, turntable, tunnel portal, water tower, pond, hill — flat icons in 2D, simple procedural solids in 3D (no external models); move, rotate and resize them
 - Undo/redo, autosave, JSON import/export, PNG export, bill of materials with article numbers
 - Interface in **English, German and Polish** (auto-detected, switchable in the menu)
@@ -39,8 +41,10 @@ Then open `http://localhost:8080`.
 5. Drag pieces to move them; ends close to each other snap. Rotate with ⟲ ⟳ or the `R` key.
 6. Switch **2D / 3D / 2D+3D** in the top bar. In 3D: one finger orbits, two fingers zoom and pan.
 7. **Sketch mode** (✎): draw strokes where the track should go; start a new stroke on an existing one for a branch; a stroke starting at an open track end continues from it. *Finish drawing* fits pieces; *Undo* reverts the whole fit in one step. The guide grid checkbox and its spacing (menu) help keep strokes straight and parallel.
-8. **Scenery**: pick a *Scenery: …* group, insert an object, drag it into place; the selection bar has rotate buttons and length/width fields (trees and the turntable scale uniformly).
-9. Menu ☰: layout name, baseboard size, grid spacing, JSON export/import, PNG export, bill of materials.
+8. **Turntable** (Accessories → TT): insert it, tap its rim where a stall track should start — the orange cursor moves there — then insert pieces as usual. ⟲ ⟳ rotate the bridge; the ⌀ field sets the pit diameter.
+9. **Heights**: with a track piece selected, *height* sets the start height of the piece and shifts everything connected to it; *grade %* tilts the piece and raises everything beyond its exits. Height labels appear on the 2D plan.
+10. **Scenery**: pick a *Scenery: …* group, insert an object, drag it into place; the selection bar has rotate buttons and length/width fields (trees and the turntable scale uniformly).
+11. Menu ☰: layout name, baseboard size, grid spacing, JSON export/import, PNG export, bill of materials.
 
 Keyboard: `Ctrl/Cmd+Z` undo, `Ctrl/Cmd+Shift+Z` / `Ctrl+Y` redo, `Delete` remove, `R` / `Shift+R` rotate, `Enter` insert (or finish drawing), `D` toggle sketch mode, `Esc` leave sketch mode.
 
@@ -70,6 +74,7 @@ Keyboard: `Ctrl/Cmd+Z` undo, `Ctrl/Cmd+Shift+Z` / `Ctrl+Y` redo, `Delete` remove
 | 55226 | WY | Y turnout |
 | 55240 / 55241 | K15 / K30 | crossings 15° / 30° |
 | 55280 | — | buffer stop |
+| TT | — | generic turntable (adjustable diameter, connections at any angle) |
 
 `*` article number to be confirmed (geometry is correct).
 
@@ -109,7 +114,7 @@ npm test            # smoke test in headless Chromium, screenshots in test-resul
   "scenery": [ { "type": "house", "x": 800, "y": 400, "rot": 15, "w": 120, "h": 90 } ] }
 ```
 
-Track pieces: `x, y` in mm (piece origin = port 0), `rot` in degrees. Scenery: `x, y` is the object centre, `w` runs along its local X axis, `h` across. Version 1 files (without `scenery`) still load.
+Track pieces: `x, y` in mm (piece origin = port 0), `rot` in degrees, optional `z` (start height, mm) and `dz` (rise over the piece). A turntable (`id: "TT"`) has `x, y` at its centre plus `r`, `bridge` (angle) and `angles` (rim connections). Scenery: `x, y` is the object centre, `w` runs along its local X axis, `h` across. Version 1 files (without `scenery`) still load.
 
 ## Contributing
 

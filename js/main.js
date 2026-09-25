@@ -37,13 +37,13 @@ function fillPieces() {
   }
   fillEntry();
 }
-const PORT_LABEL = { turnout: ['port.toe', 'port.straight', 'port.branch', 'port.branch2'], crossing: ['A1', 'A2', 'B1', 'B2'] };
+const PORT_LABEL = { turnout: ['port.toe', 'port.straight', 'port.branch', 'port.branch2'], crossing: ['A1', 'A2', 'B1', 'B2'], turntable: ['port.bridgeA', 'port.bridgeB'] };
 function fillEntry() {
   if (isSceneryGroup()) return;
   const def = BY_ID[selPiece.value];
   selEntry.innerHTML = '';
   def.geo.ports.forEach((_, i) => {
-    const key = (PORT_LABEL[def.group] || ['port.start', 'port.end'])[i];
+    const key = (PORT_LABEL[def.turntable ? 'turntable' : def.group] || ['port.start', 'port.end'])[i];
     const lbl = key ? (key.startsWith('port.') ? t(key) : key) : t('port.n', { i });
     selEntry.append(new Option(`${i}: ${lbl}`, String(i)));
   });
@@ -143,16 +143,23 @@ $('btn-rot-l').addEventListener('click', () => editor.rotateSelected(-15));
 $('btn-rot-r').addEventListener('click', () => editor.rotateSelected(15));
 $('btn-del').addEventListener('click', () => editor.deleteSelected());
 for (const id of ['in-sel-w', 'in-sel-h']) $(id).addEventListener('change', () => {
-  const sc = editor.selectedScenery; if (!sc) return;
-  layout.resizeScenery(sc, +$('in-sel-w').value || sc.w, +$('in-sel-h').value || sc.h);
+  const sc = editor.selectedScenery, p = editor.selected;
+  if (sc) layout.resizeScenery(sc, +$('in-sel-w').value || sc.w, +$('in-sel-h').value || sc.h);
+  else if (p && BY_ID[p.id].turntable) layout.setTurntableRadius(p, (+$('in-sel-w').value || p.r * 2) / 2);
 });
+$('in-sel-z').addEventListener('change', () => { const p = editor.selected; if (p) layout.setHeight(p, +$('in-sel-z').value || 0); });
+$('in-sel-g').addEventListener('change', () => { const p = editor.selected; if (p) layout.setGrade(p, Math.max(-8, Math.min(8, +$('in-sel-g').value || 0))); });
 editor.on((kind) => {
   if (kind !== 'select') return;
   const p = editor.selected, sc = editor.selectedScenery;
   $('sel-tools').classList.toggle('hidden', (!p && !sc) || editor.mode === 'draw');
-  $('sel-size-w').classList.toggle('hidden', !sc);
+  const tt = p && BY_ID[p.id].turntable;
+  $('sel-size-w').classList.toggle('hidden', !sc && !tt);
   $('sel-size-h').classList.toggle('hidden', !sc || SCENERY[sc.type].resize === 'uniform');
-  if (p) $('sel-name').textContent = `${BY_ID[p.id].id} ${BY_ID[p.id].code}`;
+  $('sel-z').classList.toggle('hidden', !p);
+  $('sel-grade').classList.toggle('hidden', !p || tt);
+  $('sel-size-w').querySelector('span').textContent = t(tt ? 'sel.dia' : 'sel.w');
+  if (p) { $('sel-name').textContent = tt ? BY_ID[p.id].code : `${BY_ID[p.id].id} ${BY_ID[p.id].code}`; $('in-sel-z').value = Math.round(p.z || 0); $('in-sel-g').value = (+Layout.grade(p).toFixed(1)); if (tt) $('in-sel-w').value = Math.round(p.r * 2); }
   if (sc) { $('sel-name').textContent = sceneryName(sc.type, getLang()); $('in-sel-w').value = Math.round(sc.w); $('in-sel-h').value = Math.round(sc.h); }
   view3d.setSelected(p ? p.uid : null);
 });
@@ -226,6 +233,9 @@ function applyLanguage() {
   refreshMenu();
 }
 applyDom();
+
+// hak diagnostyczny (testy, konsola)
+window.__routelayout = { layout, editor, view3d };
 
 // ---- start -----------------------------------------------------------------
 layout.onChange((kind) => { if (kind === 'change') layout.save(); });

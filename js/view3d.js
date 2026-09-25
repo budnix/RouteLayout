@@ -2,7 +2,7 @@
 
 import * as THREE from '../vendor/three.module.js';
 import { OrbitControls } from '../vendor/OrbitControls.js';
-import { GAUGE } from './catalog.js';
+import { GAUGE, BY_ID } from './catalog.js';
 import { buildScenery3D } from './scenery.js';
 
 const RAIL_H = 2.5;          // wysokość szyny (Code 100 ≈ 2,5 mm)
@@ -61,6 +61,8 @@ export class View3D {
       sleeper: new THREE.MeshStandardMaterial({ color: 0x4a3a2b, roughness: 0.95 }),
       ballast: new THREE.MeshStandardMaterial({ color: 0x9a9083, roughness: 1, side: THREE.DoubleSide }),
       board: new THREE.MeshStandardMaterial({ color: 0x5f8f4a, roughness: 1 }),
+      pier: new THREE.MeshStandardMaterial({ color: 0x9a9a96, roughness: 0.95 }),
+      pit: new THREE.MeshStandardMaterial({ color: 0x7a7570, roughness: 1 }),
       edge: new THREE.MeshStandardMaterial({ color: 0xa87c4f, roughness: 0.9 }),
       selected: new THREE.MeshStandardMaterial({ color: 0xff9a3c, emissive: 0x552200, roughness: 0.5, side: THREE.DoubleSide }),
     };
@@ -156,7 +158,7 @@ export class View3D {
       const n = Math.ceil(L / SLEEPER.pitch);
       for (let i = 0; i < n && si < sleeperCount; i++) {
         const { p, t } = pointAt(pts, (i + 0.5) * SLEEPER.pitch);
-        pos.set(p[0], BALLAST_H + SLEEPER.h / 2, p[1]);
+        pos.set(p[0], (p[2] || 0) + BALLAST_H + SLEEPER.h / 2, p[1]);
         q.setFromAxisAngle(up, -Math.atan2(t[1], t[0]));
         m4.compose(pos, q, one);
         sleepers.setMatrixAt(si++, m4);
@@ -177,6 +179,31 @@ export class View3D {
     addMerged(ballastGeos, this.mats.ballast);
     addMerged(railGeos, this.mats.rail);
     addMerged(selGeos, this.mats.selected);
+
+    // filary pod torem uniesionym ponad blat
+    const pierGeos = [];
+    for (const s of segs) {
+      const L = polyLength(s.pts);
+      for (let d = 50; d < L; d += 100) {
+        const { p } = pointAt(s.pts, d);
+        const z = p[2] || 0;
+        if (z < 8) continue;
+        const g = new THREE.BoxGeometry(16, z, 26);
+        g.translate(p[0], z / 2, p[1]);
+        pierGeos.push(g);
+      }
+    }
+    addMerged(pierGeos, this.mats.pier);
+
+    // obrotnice: niecka, pierścień (most rysowany jak zwykły tor)
+    for (const tt of this.layout.pieces) {
+      if (!BY_ID[tt.id].turntable) continue;
+      const z = tt.z || 0;
+      const pit = new THREE.Mesh(new THREE.CylinderGeometry(tt.r, tt.r, 4, 48), this.mats.pit);
+      pit.position.set(tt.x, z - 1.4, tt.y); pit.receiveShadow = true; this.trackGroup.add(pit);   // wierzch 0,6 mm nad blatem – bez z-fightingu
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(tt.r, 2.5, 8, 48), this.mats.edge);
+      ring.rotation.x = Math.PI / 2; ring.position.set(tt.x, z + 1, tt.y); this.trackGroup.add(ring);
+    }
 
     // sceneria
     this.sceneryGroup.traverse((m) => m.geometry?.dispose());
@@ -199,7 +226,8 @@ function pointAt(pts, d) {
     const L = Math.hypot(dx, dy);
     if (acc + L >= d || i === pts.length - 1) {
       const t = L ? Math.min(1, Math.max(0, (d - acc) / L)) : 0;
-      return { p: [pts[i - 1][0] + dx * t, pts[i - 1][1] + dy * t], t: [dx / (L || 1), dy / (L || 1)] };
+      const z0 = pts[i - 1][2] || 0, z1 = pts[i][2] || 0;
+      return { p: [pts[i - 1][0] + dx * t, pts[i - 1][1] + dy * t, z0 + (z1 - z0) * t], t: [dx / (L || 1), dy / (L || 1)] };
     }
     acc += L;
   }
@@ -217,9 +245,10 @@ function ribbon(pts, w, h, offset, y0 = 0) {
     const L = Math.hypot(tx, ty) || 1; tx /= L; ty /= L;
     const nx = -ty, ny = tx; // normalna w płaszczyźnie
     const cx = pts[i][0] + nx * offset, cz = pts[i][1] + ny * offset;
+    const yb = y0 + (pts[i][2] || 0);
     // 4 wierzchołki przekroju: dół-lewo, dół-prawo, góra-prawo, góra-lewo
     const hw = w / 2;
-    verts.push(cx - nx * hw, y0, cz - ny * hw, cx + nx * hw, y0, cz + ny * hw, cx + nx * hw, y0 + h, cz + ny * hw, cx - nx * hw, y0 + h, cz - ny * hw);
+    verts.push(cx - nx * hw, yb, cz - ny * hw, cx + nx * hw, yb, cz + ny * hw, cx + nx * hw, yb + h, cz + ny * hw, cx - nx * hw, yb + h, cz - ny * hw);
     normals.push(-nx, 0, -ny, nx, 0, ny, nx, 0, ny, -nx, 0, -ny);
     if (i) {
       const p = (i - 1) * 4, c = i * 4;

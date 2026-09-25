@@ -177,6 +177,34 @@ const items = [
 // Odbicia lustrzane łuków (skręt w prawo) nie są osobnymi artykułami: fizyczny
 // łuk obraca się. W edytorze łuk "w prawo" uzyskujemy przez wejście portem 1.
 
+// Obrotnica – element o geometrii zależnej od instancji (średnica, kąt mostu,
+// lista kątów, pod którymi doczepiono tory). Środek w lokalnym (0,0).
+export const TURNTABLE_ID = 'TT';
+items.push({ id: TURNTABLE_ID, code: 'TT', group: 'accessory', turntable: true, dynamic: true, r: 160,
+  name: { pl: 'Obrotnica (⌀ regulowana, tory w dowolnym punkcie)', en: 'Turntable (adjustable ⌀, tracks at any angle)', de: 'Drehscheibe (⌀ einstellbar, Gleise in jedem Winkel)' },
+  geo: turntableGeo({ r: 160, bridge: 0, angles: [] }) });
+
+/**
+ * Geometria obrotnicy: segment mostu przez środek oraz porty – dwa końce mostu
+ * (0 i 1) i kolejne dla każdego kąta z `angles` (na obrzeżu, kierunek na zewnątrz).
+ */
+export function turntableGeo(piece) {
+  const r = piece.r || 160, b = piece.bridge || 0;
+  const bx = r * Math.cos(d2r(b)), by = r * Math.sin(d2r(b));
+  const ports = [{ x: bx, y: by, a: b }, { x: -bx, y: -by, a: b + 180 }];
+  for (const a of piece.angles || []) {
+    if (Math.abs(((a - b) % 180 + 180) % 180) < 0.5) continue; // pokrywa się z końcem mostu
+    ports.push({ x: r * Math.cos(d2r(a)), y: r * Math.sin(d2r(a)), a });
+  }
+  return { segments: [{ type: 'line', x1: -bx, y1: -by, x2: bx, y2: by }], ports, routes: [[0, 1]] };
+}
+
+/** Geometria elementu – z katalogu lub liczona z instancji (obrotnica). */
+export function geoOf(piece) {
+  const def = BY_ID[piece.id];
+  return def.dynamic ? turntableGeo(piece) : def.geo;
+}
+
 export const CATALOG = items;
 export const BY_ID = Object.fromEntries(items.map((p) => [p.id, p]));
 

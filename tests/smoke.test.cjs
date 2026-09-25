@@ -63,6 +63,23 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     page.on('console', (m) => { if (m.type() === 'error') errors.push(`${tag} console: ${m.text()}`); });
   };
 
+  // obrotnica + wysokości (model, Node)
+  {
+    const L = new Layout();
+    const tt = L.add('TT', { x: 500, y: 500, rot: 0 });
+    const rim = L.addRimPort(tt, 37);
+    const a = L.attach('55200', 0, rim);
+    check(rim && a.rot === 37 && L.openPorts().length === 3, 'obrotnica: port na obrzeżu pod 37°, prosta doczepiona (rot 37)');
+    L.setGrade(a, 3); const b = L.attach('55200', 0, L.portOf(a, 1));
+    check(Math.abs(b.dz - 7.172) < 0.01 && Math.abs(b.z - 7.172) < 0.01, 'wysokości: nachylenie 3% dziedziczone przez kolejny element');
+    L.setHeight(a, 50);
+    check(a.z === 50 && Math.abs(b.z - 57.172) < 0.01 && tt.z === 50 && L.openPorts().length === 3, 'wysokości: zmiana wysokości przesuwa całą połączoną grupę, połączenia zachowane');
+    b.z += 20; L._portCache = null;
+    check(L.openPorts().length === 5, 'wysokości: porty na różnych wysokościach nie łączą się');
+    const M = new Layout(); M.load(L.toJSON());
+    check(M.pieces[0].angles.length === 1 && M.pieces[1].z === 50, 'obrotnica/wysokości: zapis i odczyt JSON');
+  }
+
   // ---- desktop ----
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   hook(page, 'desktop');
@@ -201,6 +218,27 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   const afterDel = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).scenery.length);
   check(meshes === 1 && afterDel === 14, 'sceneria: usunięcie zaznaczonego obiektu');
   await page.evaluate(() => { document.getElementById('sel-group').value = 'straight'; document.getElementById('sel-group').dispatchEvent(new Event('change')); });
+
+  // obrotnica w UI: wstaw, stuknij obrzeże, doklej prostą, ustaw nachylenie, 3D
+  await page.click('#btn-new');
+  await page.evaluate(() => { const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); }; set('sel-group', 'accessory'); set('sel-piece', 'TT'); document.getElementById('btn-add').click(); });
+  await page.click('#btn-fit2d');
+  const ttInfo = await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('routelayout.v1')); return s.pieces[0]; });
+  // stuknięcie w obrzeże pod kątem 120° tworzy tam port i ustawia kursor
+  const rimPx = await page.evaluate((tt) => {
+    const { editor } = window.__routelayout; const a = 120 * Math.PI / 180;
+    const p = editor.toScreen(tt.x + tt.r * Math.cos(a), tt.y + tt.r * Math.sin(a));
+    const r = editor.canvas.getBoundingClientRect(); return { x: r.left + p.x, y: r.top + p.y };
+  }, ttInfo);
+  await page.mouse.click(rimPx.x, rimPx.y);
+  const rimState = await page.evaluate(() => { const { layout, editor } = window.__routelayout; const c = editor.cursorPort(); return { angles: layout.pieces[0].angles, cursorA: c && Math.round(c.a) }; });
+  check(rimState.angles.includes(120) && rimState.cursorA === 120, 'obrotnica UI: stuknięcie w obrzeże → port pod 120° i kursor');
+  await page.evaluate(() => { const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); }; set('sel-group', 'straight'); set('sel-piece', '55200'); document.getElementById('btn-add').click(); set('in-sel-g', 4); });
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces);
+  check(after.length === 2 && after[1].id === '55200' && after[1].rot === 120 && Math.abs(after[1].dz - 9.5628) < 0.01, 'obrotnica UI: prosta doklejona do portu 120°, nachylenie 4% z panelu');
+  await page.click('#tab-3d'); await page.click('#btn-fit3d'); await page.waitForTimeout(800);
+  await page.screenshot({ path: path.join(OUT, 'desktop-turntable-3d.png') });
+  await page.click('#tab-2d');
 
   // i18n: przełączenie na DE zmienia teksty UI i nazwy w katalogu
   const de = await page.evaluate(() => {
