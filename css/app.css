@@ -164,7 +164,7 @@ select, input[type=text], input[type=number] {
   body.side-collapsed { grid-template-columns: 1fr 0; }
   body.side-collapsed .palette { display: none; }
   .side-toggle {
-    display: inline-flex; position: fixed; z-index: 15; top: calc(var(--topbar-h) + var(--sat) + 10px); right: calc(340px + var(--sar) - 1px);
+    display: inline-flex; position: fixed; z-index: 15; top: calc(50% - 22px); right: calc(340px + var(--sar) - 1px);
     width: 26px; height: 44px; padding: 0; border-radius: 10px 0 0 10px; border-right: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   }
   body.side-collapsed .side-toggle { right: calc(var(--sar)); border-radius: 10px 0 0 10px; }
