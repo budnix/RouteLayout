@@ -89,6 +89,17 @@ export function segment(stroke, step = 5) {
       const lo = A.i0 + 4, hi = B.i1 - 4;
       if (hi <= lo) continue;
       let best = A.i1, bestCost = Infinity;
+      if (A.type !== B.type) {
+        // prosta i łuk są styczne: granica w spodku prostopadłej ze środka okręgu na prostą
+        const line = A.type === 'line' ? A : B, arc = A.type === 'arc' ? A : B;
+        const ux = Math.cos(d2r(line.a)), uy = Math.sin(d2r(line.a));
+        const t = (arc.cx - line.mx) * ux + (arc.cy - line.my) * uy;
+        const fx = line.mx + ux * t, fy = line.my + uy * t;
+        let bd = Infinity;
+        for (let j = lo; j <= hi; j++) { const d = Math.hypot(pts[j][0] - fx, pts[j][1] - fy); if (d < bd) { bd = d; best = j; } }
+        A.i1 = best; B.i0 = best + 1;
+        continue;
+      }
       // koszt(j) = Σ_{lo..j} resid_A + Σ_{j+1..hi} resid_B  (prefiksy)
       const ra = [], rb = [];
       for (let j = lo; j <= hi; j++) { ra.push(resid(A, pts[j])); rb.push(resid(B, pts[j])); }
@@ -253,17 +264,18 @@ function arcSweep(stroke, prims, i) {
     const d = Math.abs(norm(next.a - prev.a));
     return acc > 180 ? 360 - d : d;
   }
-  if (prev?.type === 'line') {
-    const d = Math.abs(norm(stroke.tan[p.i1] - prev.a));
-    return acc > 180 ? 360 - d : Math.max(d, acc * 0.5);
-  }
-  return acc;
+  // z wektorów promieni od środka dopasowanego okręgu (odporne na szum stycznej)
+  const [x0, y0] = stroke.pts[p.i0], [x1, y1] = stroke.pts[p.i1];
+  const a0 = r2d(Math.atan2(y0 - p.cy, x0 - p.cx)), a1 = r2d(Math.atan2(y1 - p.cy, x1 - p.cx));
+  let sw = ((a1 - a0) * p.dir) % 360; if (sw < 0) sw += 360;
+  if (acc < 90 && sw > 270) sw = 360 - sw;   // niejednoznaczność przy bardzo małych łukach
+  return sw;
 }
 
 // ---- etap 2: elementy ----------------------------------------------------------------
 
 /** Optymalny zestaw prostych o sumie ≈ L (DP po długości w mm). */
-export function decomposeStraight(L, piecePenalty = 4) {
+export function decomposeStraight(L, piecePenalty = 8) {
   const target = Math.round(L);
   if (target < 20) return [];
   const maxLen = target + 70;
@@ -305,7 +317,7 @@ export function decomposeArc(radius, sweep) {
 export function pathToPieces(path, freeEnd = false) {
   const out = [];
   for (const [i, p] of path.entries()) {
-    if (p.type === 'straight') for (const id of decomposeStraight(p.L, freeEnd && i === path.length - 1 ? 25 : 4)) out.push({ id, entry: 0 });
+    if (p.type === 'straight') for (const id of decomposeStraight(p.L, freeEnd && i === path.length - 1 ? 25 : 8)) out.push({ id, entry: 0 });
     else for (const id of decomposeArc(p.radius, p.sweep)) out.push({ id, entry: p.dir > 0 ? 0 : 1 });
   }
   return out;

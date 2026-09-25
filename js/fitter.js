@@ -359,7 +359,7 @@ function straightWithTurnouts(L, pose, strokes, freeStart = false, freeEnd = fal
     if (restL < 20) return list;
   }
   // wolny koniec kreski: mniej elementów ważniejsze niż dokładna długość
-  for (const id of decomposeStraight(restL, freeEnd ? 25 : 4)) list.push({ id, entry: 0 });
+  for (const id of decomposeStraight(restL, freeEnd ? 25 : 8)) list.push({ id, entry: 0 });
   return { list, pose };
 }
 
