@@ -84,6 +84,77 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     check(live && live.length === 2, 'normalizacja na żywo: drżąca prosta → 2 punkty');
   }
 
+  // ---- przypadki brzegowe normalizacji (paleta PIKO jako wiedza o zamiarze) ----
+  {
+    const { prepareStroke, normalizeStroke } = await import('../js/fitter.js');
+    const { segment, idealPath } = await import('../js/normalize.js');
+    const d2r = (d) => (d * Math.PI) / 180;
+    // generator kresek: pose = {x,y,a}; line(L), arc(r, sweep, dir) – punkty co 5 mm
+    const gen = (start, ops, jitter = 0) => {
+      let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5;
+      const pts = [[start.x, start.y]]; let p = { ...start };
+      for (const op of ops) {
+        if (op.line) { const n = Math.ceil(op.line / 5); for (let i = 1; i <= n; i++) { const t = (op.line * i) / n; pts.push([p.x + t * Math.cos(d2r(p.a)), p.y + t * Math.sin(d2r(p.a))]); } p = { x: pts[pts.length - 1][0], y: pts[pts.length - 1][1], a: p.a }; }
+        else { const { r, sweep, dir } = op; const cx = p.x - dir * r * Math.sin(d2r(p.a)), cy = p.y + dir * r * Math.cos(d2r(p.a)); const a0 = p.a - dir * 90; const n = Math.ceil((d2r(sweep) * r) / 5);
+          for (let i = 1; i <= n; i++) { const a = d2r(a0 + (dir * sweep * i) / n); pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); }
+          p = { x: pts[pts.length - 1][0], y: pts[pts.length - 1][1], a: p.a + dir * sweep }; }
+      }
+      return jitter ? pts.map(([x, y]) => [x + rnd() * jitter, y + rnd() * jitter]) : pts;
+    };
+    const prims = (pts) => segment(prepareStroke(pts));
+    const path = (pts) => { const st = prepareStroke(pts); const pr = segment(st); return idealPath(st, pr, { x: st.pts[0][0], y: st.pts[0][1], a: st.tan[0] }).path; };
+    const desc = (pr) => pr.map((p) => p.type + (p.type === 'arc' ? `(r${p.r.toFixed(0)})` : '')).join(',');
+    const S = { x: 100, y: 500, a: 0 };
+
+    // 1. długi ciasny łuk (r=250 < R1, 90°): zamiar "jak najciaśniej" → łuk R1, 90°
+    let pa = path(gen(S, [{ line: 300 }, { r: 250, sweep: 90, dir: 1 }, { line: 200 }]));
+    check(pa.length === 3 && pa[1].type === 'arc' && pa[1].radius.r === 360 && pa[1].sweep === 90, 'brzeg: ciasny długi łuk r=250 → R1 90° (' + JSON.stringify(pa.map((p) => p.type === 'arc' ? [p.radius.r, p.sweep] : Math.round(p.L))) + ')');
+    // 2a. ciasne załamanie 20° (r=250), które TRWA (prosta 0° → prosta 20°): zamiar → łuk R1 (22,5° z siatki 7,5°)
+    pa = path(gen(S, [{ line: 300 }, { r: 250, sweep: 20, dir: 1 }, { line: 300 }]));
+    check(pa.length === 3 && pa[1].type === 'arc' && pa[1].radius.r === 360 && pa[1].sweep === 22.5, 'brzeg: trwałe załamanie 20° r=250 → R1 22,5° (' + JSON.stringify(pa.map((p) => p.type === 'arc' ? [p.radius.r, p.sweep] : Math.round(p.L))) + ')');
+    // 2b. ciasne wychylenie i powrót (r=250, +20° i −20°) w prostej: drżenie → jedna prosta
+    let pr = prims(gen(S, [{ line: 300 }, { r: 250, sweep: 20, dir: 1 }, { r: 250, sweep: 20, dir: -1 }, { line: 300 }]));
+    check(pr.length === 1 && pr[0].type === 'line', 'brzeg: ciasne wychylenie i powrót → prosta (' + desc(pr) + ')');
+    // 3. przeciwłuk R9 15° (rozstaw równoległy) między prostymi zostaje łukiem R9 15°
+    pa = path(gen(S, [{ line: 300 }, { r: 907.97, sweep: 15, dir: 1 }, { r: 907.97, sweep: 15, dir: -1 }, { line: 300 }], 3));
+    const arcs9 = pa.filter((p) => p.type === 'arc');
+    check(arcs9.length === 2 && arcs9.every((p) => p.radius.r === 907.97 && p.sweep === 15), 'brzeg: przeciwłuki R9 15°/15° zachowane (' + JSON.stringify(pa.map((p) => p.type === 'arc' ? [p.radius.r, p.sweep, p.dir] : Math.round(p.L))) + ')');
+    // 4. załamanie 5° w prostej (dwie proste pod 0° i 5°) → jedna prosta
+    pr = prims(gen(S, [{ line: 400 }, { r: 2500, sweep: 5, dir: 1 }, { line: 400 }]));
+    check(pr.length === 1 && pr[0].type === 'line', 'brzeg: załamanie 5° → jedna prosta (' + desc(pr) + ')');
+    // 5. łuk 45° r≈430 → R2 z kątem 45° (R2 ma elementy 7,5°); r≈480 → R3 tylko 30° lub 60°
+    pa = path(gen(S, [{ line: 300 }, { r: 430, sweep: 45, dir: 1 }, { line: 300 }], 2));
+    check(pa[1]?.type === 'arc' && pa[1].radius.r === 421.88 && pa[1].sweep === 45, 'brzeg: łuk 45° r=430 → R2 45° (' + JSON.stringify(pa.map((p) => p.type === 'arc' ? [p.radius.r, p.sweep] : Math.round(p.L))) + ')');
+    pa = path(gen(S, [{ line: 300 }, { r: 484, sweep: 45, dir: 1 }, { line: 300 }], 2));
+    check(pa[1]?.type === 'arc' && pa[1].radius.r === 483.75 && (pa[1].sweep === 30 || pa[1].sweep === 60), 'brzeg: łuk 45° r=484 → R3 z kątem 30/60 (siatka R3) (' + pa[1]?.sweep + ')');
+    // 6. łuk 270° (prawie pełny okrąg) r=430 → jeden łuk R2 270°
+    pa = path(gen(S, [{ line: 200 }, { r: 430, sweep: 270, dir: 1 }]));
+    check(pa[1]?.type === 'arc' && pa[1].radius.r === 421.88 && pa[1].sweep === 270, 'brzeg: łuk 270° → R2 270° (' + JSON.stringify(pa.map((p) => p.type === 'arc' ? [p.radius.r, p.sweep] : Math.round(p.L))) + ')');
+    // 7. kreska < 60 mm → ignorowana
+    check(normalizeStroke(gen(S, [{ line: 40 }]), new Layout()) === null, 'brzeg: kreska 40 mm ignorowana');
+    // 8. kierunek startu snapowany do 15°: prosta pod 22° → 15°; pod 8° → 15°? nie: 8° → 15 (najbliższe) / 6° → 0
+    pa = path(gen({ x: 100, y: 500, a: 22 }, [{ line: 500 }]));
+    const st22 = prepareStroke(gen({ x: 100, y: 500, a: 22 }, [{ line: 500 }])); const ip22 = idealPath(st22, segment(st22), { x: st22.pts[0][0], y: st22.pts[0][1], a: st22.tan[0] });
+    const st6 = prepareStroke(gen({ x: 100, y: 500, a: 6 }, [{ line: 500 }])); const ip6 = idealPath(st6, segment(st6), { x: st6.pts[0][0], y: st6.pts[0][1], a: st6.tan[0] });
+    check(ip22.start.a === 15 && ip6.start.a === 0, `brzeg: kierunek startu 22° → ${ip22.start.a}°, 6° → ${ip6.start.a}°`);
+    // 9. doczepienie do otwartego końca: kreska zaczęta 20 mm od portu pod 10° różnicy → start dokładnie w porcie, kierunek portu
+    const Lp = new Layout(); const base = Lp.add('55200', { x: 500, y: 500, rot: 0 });
+    const port = Lp.portOf(base, 1); // (739.07, 500) a=0
+    const near = gen({ x: port.x + 15, y: port.y + 12, a: 10 }, [{ line: 400 }]);
+    const nz = normalizeStroke(near, Lp);
+    check(nz && Math.abs(nz[0][0] - port.x) < 0.01 && Math.abs(nz[0][1] - port.y) < 0.01 && Math.abs(nz[1][1] - port.y) < 0.01, 'brzeg: kreska przy otwartym końcu startuje z portu i w jego kierunku');
+    // 10. kreska rysowana W STRONĘ portu (koniec przy porcie): wynik zachowuje kierunek rysowania, ostatni punkt = port
+    const toward = gen({ x: port.x + 400, y: port.y + 10, a: 180 }, [{ line: 385 }]);
+    const nt = normalizeStroke(toward, Lp);
+    check(nt && Math.abs(nt[nt.length - 1][0] - port.x) < 0.01 && Math.abs(nt[nt.length - 1][1] - port.y) < 0.01, 'brzeg: kreska w stronę portu kończy się dokładnie w porcie');
+    // 11. zygzak z ręki na prostej z szumem ±5 mm (realistyczny iPad) → jedna prosta
+    pr = prims(gen(S, [{ line: 800 }], 10));
+    check(pr.length === 1 && pr[0].type === 'line', 'brzeg: prosta z szumem ±5 mm → jedna prosta (' + desc(pr) + ')');
+    // 12. łuk R2 30° z szumem ±5 mm między prostymi → dokładnie R2 30°
+    pa = path(gen(S, [{ line: 300 }, { r: 421.88, sweep: 30, dir: -1 }, { line: 300 }], 10));
+    check(pa.length === 3 && pa[1].type === 'arc' && pa[1].radius.r === 421.88 && pa[1].sweep === 30 && pa[1].dir === -1, 'brzeg: R2 30° w prawo z szumem → R2 30° w prawo (' + JSON.stringify(pa.map((p) => p.type === 'arc' ? [p.radius.r, p.sweep, p.dir] : Math.round(p.L))) + ')');
+  }
+
   // obrotnica + wysokości (model, Node)
   {
     const L = new Layout();

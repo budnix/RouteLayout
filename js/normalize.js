@@ -19,7 +19,7 @@ const K_STRAIGHT = 1 / 2200;     // |krzywizna| poniżej → prosta (R > 2,2 m)
 const K_CURVE = 1 / 1300;        // powyżej → łuk (histereza)
 const MIN_SEG = 90;              // krótsze segmenty scalamy z sąsiadem [mm]
 const MIN_STRAIGHT = 25;         // krótszą prostą pomijamy [mm]
-const MIN_SWEEP = 12;            // łuk o mniejszym kącie traktujemy jako prostą [°]
+const MIN_SWEEP = 9;             // łuk o mniejszym kącie traktujemy jako prostą [°] (R9 15° po wygładzeniu daje ~12°)
 const R_MIN_REAL = RAD.R1 * 0.8; // łuk ciaśniejszy niż 80% R1 nie istnieje w palecie → to drżenie, nie zamiar
 
 // promienie katalogowe i elementy łukowe dla nich: [id, kąt]
@@ -86,12 +86,9 @@ export function segment(stroke, step = 5, debug = false) {
   // dopasowanie geometrii; łuk o łącznym kącie < MIN_SWEEP to w intencji prosta (drżenie ręki)
   let prims = segs.map((g) => {
     if (g.c !== 0) { let acc = 0; for (let j = g.i0; j < g.i1; j++) acc += norm(tan[j + 1] - tan[j]); if (Math.abs(acc) < MIN_SWEEP) g.c = 0; g.acc = acc; }
-    const p = fitPrim(pts, g.i0, g.i1, g.c);
-    // łuk ciaśniejszy niż paleta i krótki kątowo to drżenie ręki → prosta;
-    // długi ciasny łuk (≥ 45°) to zamiar "jak najciaśniej" → zostaje i trafi w R1
-    if (p.type === 'arc' && p.r < R_MIN_REAL && Math.abs(g.acc) < 45) return fitPrim(pts, g.i0, g.i1, 0);
-    return p;
+    return fitPrim(pts, g.i0, g.i1, g.c);
   });
+  prims = dropUnbuildable(pts, tan, prims, step);
   dbg('fit', prims);
   prims = mergePrims(pts, prims, step);
   dbg('merge', prims);
@@ -125,9 +122,26 @@ export function segment(stroke, step = 5, debug = false) {
       A.i1 = best; B.i0 = best + 1;
     }
     prims = prims.map((p) => fitPrim(pts, p.i0, p.i1, p.type === 'arc' ? p.dir : 0));
+    prims = dropUnbuildable(pts, tan, prims, step);
     prims = mergePrims(pts, prims, step);
   }
   return prims;
+}
+
+/**
+ * Łuk ciaśniejszy niż paleta (r < 80% R1) i krótki kątowo (< 45°) jest wykonalny tylko
+ * jako zamiar zmiany kierunku. Jeśli proste przed i za nim są równoległe (kierunek nie
+ * zmienia się trwale), to drżenie ręki → prosta. Długi ciasny łuk (≥ 45°) zawsze zostaje
+ * ("jak najciaśniej" → R1).
+ */
+function dropUnbuildable(pts, tan, prims, step) {
+  const sweepOf = (p) => { let a = 0; for (let j = p.i0; j < p.i1; j++) a += norm(tan[j + 1] - tan[j]); return Math.abs(a); };
+  return prims.map((p, k) => {
+    if (p.type !== 'arc' || p.r >= R_MIN_REAL || sweepOf(p) >= 45) return p;
+    const prev = prims[k - 1], next = prims[k + 1];
+    const persists = prev?.type === 'line' && next?.type === 'line' && Math.abs(norm(next.a - prev.a)) > 8;
+    return persists ? p : fitPrim(pts, p.i0, p.i1, 0);
+  });
 }
 
 /**
@@ -156,15 +170,17 @@ function collapseWobble(pts, tan, prims, step, debug = false) {
         if (Math.abs(net) > 20) continue;
         const i0 = run[0].i0, i1 = run[run.length - 1].i1;
         const P = pts.slice(i0, i1 + 1);
-        const model = { type: 'line', ...lineModel(P) };
         const len = (i1 - i0) * step;
-        let maxR = 0; for (const q of P) maxR = Math.max(maxR, resid(model, q));
-        // odniesienie: sąsiednia prosta (już wyprodukowana przed ciągiem lub następna po nim)
+        // odniesienie: sąsiednia prosta (już wyprodukowana przed ciągiem lub następna po nim).
+        // Z odniesieniem: drżenie musi mieścić się w ±25 mm od JEJ przedłużenia (S-ka R9 kończy 62 mm dalej).
+        // Bez odniesienia: ≥ 3 przemiany i bliskość świeżo dopasowanej prostej.
         const prev = out[out.length - 1], next = cur[j + 1];
-        const ref = isRefLine(prev) ? prev.a : isRefLine(next) ? next.a : null;
-        const dirOk = ref !== null ? Math.abs(norm(model.a - ref)) <= 6 : arcs.length >= 3;
-        if (debug) console.log(`    run ${i}-${j} arcs=${arcs.length} net=${net.toFixed(1)} maxR=${maxR.toFixed(1)} len=${len.toFixed(0)} line=${model.a.toFixed(1)} ref=${ref === null ? '-' : ref.toFixed(1)} dirOk=${dirOk}`);
-        if (maxR > Math.max(30, 0.06 * len) || !dirOk) continue;
+        const ref = isRefLine(prev) ? prev : isRefLine(next) ? next : null;
+        const model = ref || { type: 'line', ...lineModel(P) };
+        let maxR = 0; for (const q of P) maxR = Math.max(maxR, resid(model, q));
+        const ok = ref ? maxR <= 25 : (arcs.length >= 3 && maxR <= Math.max(30, 0.04 * len));
+        if (debug) console.log(`    run ${i}-${j} arcs=${arcs.length} net=${net.toFixed(1)} maxR=${maxR.toFixed(1)} len=${len.toFixed(0)} ref=${ref ? ref.a.toFixed(1) : '-'} ok=${ok}`);
+        if (!ok) continue;
         best = j;
       }
       if (best !== null) { out.push(fitPrim(pts, cur[i].i0, cur[best].i1, 0)); i = best + 1; changed = true; }
