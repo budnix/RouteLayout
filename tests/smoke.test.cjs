@@ -179,7 +179,7 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   const fitted = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces);
   check(fitted.length >= 3 && fitted.some((p) => p.id.startsWith('5521')), 'rysowanie: szkic zamieniony na proste i łuki');
   const m1 = await page.evaluate(() => window.__routelayout.lastFit.method);
-  check(m1 === 'normalized', 'rysowanie: z „Poprawiaj rysunek” użyta normalizacja');
+  check(m1 === 'normalized', 'rysowanie: z „Normalizuj linie” użyta normalizacja');
   // to samo bez poprawiania: tor dosłownie za kreską (metoda zachłanna), ustawienie zapamiętane
   await page.click('#btn-new'); await page.click('#btn-fit2d'); await page.click('#btn-draw');
   await page.uncheck('#chk-fix');
