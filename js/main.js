@@ -77,7 +77,7 @@ $('btn-new').addEventListener('click', () => {
   if (!layout.pieces.length || confirm(t('confirm.new'))) {
     editor.selected = null; editor.cursor = null;
     layout.reset(t('default.name'));
-    editor.emit('select'); editor.fit();
+    editor.emit('select'); editor.fit(); view3d.fit();
   }
 });
 $('btn-undo').addEventListener('click', () => layout.undo());

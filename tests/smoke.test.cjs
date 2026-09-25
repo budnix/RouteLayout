@@ -118,6 +118,19 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.waitForTimeout(500);
   const afterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces.length);
   check(afterNew === 0 && afterReload === 0, 'nowy układ: pusty i pozostaje pusty po przeładowaniu');
+  // nowy układ w 3D: blat musi być w kadrze (kamera celuje w środek blatu)
+  await page.click('#tab-3d'); await page.waitForTimeout(400);
+  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); });
+  await page.waitForTimeout(600);
+  const shot = await page.locator('#view3d canvas').screenshot();
+  const boardPx = await page.evaluate(async (b64) => {
+    const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+    return [...g.getImageData(Math.floor(img.width / 2), Math.floor(img.height / 2), 1, 1).data];
+  }, shot.toString('base64'));
+  check(boardPx[1] > boardPx[0] && boardPx[1] > boardPx[2], `nowy układ w 3D: środek ekranu to zielony blat (${boardPx.slice(0, 3)})`);
+  await page.click('#tab-2d');
 
   // tryb rysowania: kreska myszą (prosta 600 mm + łuk) -> po "Zakończ" powstają tory
   await page.click('#btn-new');

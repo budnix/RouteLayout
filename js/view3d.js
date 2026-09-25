@@ -66,6 +66,8 @@ export class View3D {
     layout.onChange((kind) => {
       if (kind === 'drag') { clearTimeout(this._t); this._t = setTimeout(() => { this.rebuildNeeded = true; this.invalidate(); }, 120); return; }
       this.rebuildNeeded = true; this.invalidate();
+      // pusty układ (nowy / wyczyszczony / wczytany inny blat): kamera na blat
+      if (!layout.pieces.length) this.fit();
     });
     this._loop = this._loop.bind(this);
     requestAnimationFrame(this._loop);
