@@ -94,6 +94,8 @@ select, input[type=text], input[type=number] {
 }
 .sel-tools .sel-name { padding: 0 8px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sel-tools button { width: 40px; padding: 0; }
+.sel-tools .size { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--c-muted); }
+.sel-tools .size input { width: 64px; min-height: 36px; padding: 4px 6px; }
 
 .hud-btn.active { background: var(--c-accent); color: #fff; border-color: transparent; }
 .draw-bar {

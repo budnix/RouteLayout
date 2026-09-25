@@ -4,6 +4,7 @@ import { Editor2D } from './editor2d.js';
 import { View3D } from './view3d.js';
 import { t, pieceName, applyDom, setLang, getLang, LANGS } from './i18n.js';
 import { fitStrokes } from './fitter.js';
+import { SCENERY, SCENERY_GROUPS, sceneryName } from './scenery.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -17,12 +18,20 @@ function fillGroups() {
   const cur = selGroup.value || 'straight';
   selGroup.innerHTML = '';
   for (const g of GROUPS) selGroup.append(new Option(t('group.' + g), g));
+  for (const g of SCENERY_GROUPS) selGroup.append(new Option(t('group.' + g), g));
   selGroup.value = cur;
 }
 fillGroups();
 
+const isSceneryGroup = () => SCENERY_GROUPS.includes(selGroup.value);
 function fillPieces() {
   selPiece.innerHTML = '';
+  if (isSceneryGroup()) {
+    for (const [type, def] of Object.entries(SCENERY)) if (def.group === selGroup.value) selPiece.append(new Option(sceneryName(type, getLang()), type));
+    selEntry.parentElement.classList.add('hidden');
+    return;
+  }
+  selEntry.parentElement.classList.remove('hidden');
   for (const p of CATALOG.filter((p) => p.group === selGroup.value)) {
     selPiece.append(new Option(`${p.id} · ${p.code} — ${pieceName(p)}${p.verified === false ? ' ' + t('pal.unverified') : ''}`, p.id));
   }
@@ -30,6 +39,7 @@ function fillPieces() {
 }
 const PORT_LABEL = { turnout: ['port.toe', 'port.straight', 'port.branch', 'port.branch2'], crossing: ['A1', 'A2', 'B1', 'B2'] };
 function fillEntry() {
+  if (isSceneryGroup()) return;
   const def = BY_ID[selPiece.value];
   selEntry.innerHTML = '';
   def.geo.ports.forEach((_, i) => {
@@ -42,7 +52,8 @@ selGroup.addEventListener('change', fillPieces);
 selPiece.addEventListener('change', fillEntry);
 fillPieces();
 
-$('btn-add').addEventListener('click', () => editor.addPiece(selPiece.value, +selEntry.value));
+function insertSelected() { if (isSceneryGroup()) editor.addScenery(selPiece.value); else editor.addPiece(selPiece.value, +selEntry.value); }
+$('btn-add').addEventListener('click', insertSelected);
 
 const quick = $('quick');
 for (const id of QUICK) {
@@ -131,11 +142,18 @@ $('btn-finish').disabled = true;
 $('btn-rot-l').addEventListener('click', () => editor.rotateSelected(-15));
 $('btn-rot-r').addEventListener('click', () => editor.rotateSelected(15));
 $('btn-del').addEventListener('click', () => editor.deleteSelected());
+for (const id of ['in-sel-w', 'in-sel-h']) $(id).addEventListener('change', () => {
+  const sc = editor.selectedScenery; if (!sc) return;
+  layout.resizeScenery(sc, +$('in-sel-w').value || sc.w, +$('in-sel-h').value || sc.h);
+});
 editor.on((kind) => {
   if (kind !== 'select') return;
-  const p = editor.selected;
-  $('sel-tools').classList.toggle('hidden', !p || editor.mode === 'draw');
+  const p = editor.selected, sc = editor.selectedScenery;
+  $('sel-tools').classList.toggle('hidden', (!p && !sc) || editor.mode === 'draw');
+  $('sel-size-w').classList.toggle('hidden', !sc);
+  $('sel-size-h').classList.toggle('hidden', !sc || SCENERY[sc.type].resize === 'uniform');
   if (p) $('sel-name').textContent = `${BY_ID[p.id].id} ${BY_ID[p.id].code}`;
+  if (sc) { $('sel-name').textContent = sceneryName(sc.type, getLang()); $('in-sel-w').value = Math.round(sc.w); $('in-sel-h').value = Math.round(sc.h); }
   view3d.setSelected(p ? p.uid : null);
 });
 
@@ -146,7 +164,7 @@ document.addEventListener('keydown', (e) => {
   else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); layout.redo(); }
   else if (e.key === 'Delete' || e.key === 'Backspace') { editor.deleteSelected(); }
   else if (e.key === 'r') editor.rotateSelected(e.shiftKey ? -15 : 15);
-  else if (e.key === 'Enter') { if (editor.mode === 'draw') finishDrawing(); else editor.addPiece(selPiece.value, +selEntry.value); }
+  else if (e.key === 'Enter') { if (editor.mode === 'draw') finishDrawing(); else insertSelected(); }
   else if (e.key === 'Escape' && editor.mode === 'draw') setDrawMode(false);
   else if (e.key === 'd') setDrawMode(editor.mode !== 'draw');
 });

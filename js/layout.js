@@ -2,6 +2,7 @@
 // undo/redo, serializacja, zestawienie części.
 
 import { BY_ID, sampleSegment, segmentLength } from './catalog.js';
+import { SCENERY, sceneryHit } from './scenery.js';
 
 const d2r = (d) => (d * Math.PI) / 180;
 export const norm = (a) => ((a % 360) + 540) % 360 - 180; // do (-180, 180]
@@ -15,6 +16,7 @@ let nextUid = 1;
 export class Layout {
   constructor() {
     this.pieces = [];
+    this.scenery = [];
     this.board = { w: 2000, h: 1000 };
     this.name = 'Layout';
     this.listeners = new Set();
@@ -28,12 +30,12 @@ export class Layout {
   emit(kind = 'change') { this._portCache = null; for (const fn of this.listeners) fn(kind, this); }
 
   // ---- undo ----
-  snapshot() { return JSON.stringify({ pieces: this.pieces, board: this.board, name: this.name }); }
+  snapshot() { return JSON.stringify({ pieces: this.pieces, scenery: this.scenery, board: this.board, name: this.name }); }
   pushUndo() { this.undoStack.push(this.snapshot()); if (this.undoStack.length > 200) this.undoStack.shift(); this.redoStack.length = 0; }
   restore(json) {
     const s = JSON.parse(json);
-    this.pieces = s.pieces; this.board = s.board; this.name = s.name ?? this.name;
-    nextUid = Math.max(nextUid, ...this.pieces.map((p) => p.uid + 1), 1);
+    this.pieces = s.pieces; this.scenery = s.scenery || []; this.board = s.board; this.name = s.name ?? this.name;
+    nextUid = Math.max(nextUid, ...this.pieces.map((p) => p.uid + 1), ...this.scenery.map((p) => p.uid + 1), 1);
     this.emit('change');
   }
   undo() { if (!this.undoStack.length) return; this.redoStack.push(this.snapshot()); this.restore(this.undoStack.pop()); }
@@ -119,10 +121,10 @@ export class Layout {
     this.emit(record ? 'change' : 'drag');
   }
   rotate(piece, deg) { this.move(piece, piece.x, piece.y, piece.rot + deg); }
-  clear() { this.pushUndo(); this.pieces = []; this.emit('change'); }
+  clear() { this.pushUndo(); this.pieces = []; this.scenery = []; this.emit('change'); }
   /** Nowy układ: elementy, nazwa i blat od zera; historia undo wyczyszczona. */
   reset(name) {
-    this.pieces = []; this.board = { w: 2000, h: 1000 }; this.name = name;
+    this.pieces = []; this.scenery = []; this.board = { w: 2000, h: 1000 }; this.name = name;
     this.undoStack.length = 0; this.redoStack.length = 0;
     this.emit('change');
   }
@@ -147,6 +149,34 @@ export class Layout {
       }
     }
     return best ? best.pose : null;
+  }
+
+  // ---- sceneria ----
+  addScenery(type, x, y, rot = 0) {
+    const def = SCENERY[type]; if (!def) return null;
+    this.pushUndo();
+    const item = { uid: nextUid++, type, x, y, rot: norm(rot), w: def.w, h: def.h };
+    this.scenery.push(item);
+    this.emit('change');
+    return item;
+  }
+  removeScenery(item) { this.pushUndo(); this.scenery = this.scenery.filter((s) => s !== item); this.emit('change'); }
+  moveScenery(item, x, y, rot = item.rot, record = true) {
+    if (record) this.pushUndo();
+    item.x = x; item.y = y; item.rot = norm(rot);
+    this.emit(record ? 'change' : 'drag');
+  }
+  resizeScenery(item, w, h) {
+    this.pushUndo();
+    const def = SCENERY[item.type];
+    item.w = Math.max(10, w); item.h = def.resize === 'uniform' ? item.w : Math.max(10, h);
+    this.emit('change');
+  }
+  /** Obiekt scenerii pod punktem; obiekty "top" mają pierwszeństwo, potem od najmniejszego. */
+  hitScenery(x, y) {
+    const hits = this.scenery.filter((s) => sceneryHit(s, x, y));
+    hits.sort((a, b) => (SCENERY[b.type].layer === 'top') - (SCENERY[a.type].layer === 'top') || a.w * a.h - b.w * b.h);
+    return hits[0] || null;
   }
 
   // ---- geometria świata do rysowania ----
@@ -194,13 +224,20 @@ export class Layout {
   }
 
   // ---- (de)serializacja ----
-  toJSON() { return { version: 1, name: this.name, board: this.board, pieces: this.pieces.map(({ id, x, y, rot }) => ({ id, x, y, rot })) }; }
+  toJSON() {
+    return {
+      version: 2, name: this.name, board: this.board,
+      pieces: this.pieces.map(({ id, x, y, rot }) => ({ id, x, y, rot })),
+      scenery: this.scenery.map(({ type, x, y, rot, w, h }) => ({ type, x, y, rot, w, h })),
+    };
+  }
   load(obj) {
     if (!obj || !Array.isArray(obj.pieces)) throw new Error('Nieprawidłowy plik układu');
     this.pushUndo();
     this.name = obj.name || 'Layout';
     this.board = obj.board || this.board;
     this.pieces = obj.pieces.filter((p) => BY_ID[p.id]).map((p) => ({ uid: nextUid++, id: p.id, x: +p.x || 0, y: +p.y || 0, rot: norm(+p.rot || 0) }));
+    this.scenery = (obj.scenery || []).filter((s) => SCENERY[s.type]).map((s) => ({ uid: nextUid++, type: s.type, x: +s.x || 0, y: +s.y || 0, rot: norm(+s.rot || 0), w: +s.w || SCENERY[s.type].w, h: +s.h || SCENERY[s.type].h }));
     this.emit('change');
   }
   save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(this.toJSON())); } catch { /* prywatny tryb Safari */ } }

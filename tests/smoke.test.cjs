@@ -101,7 +101,7 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   // eksport JSON -> import JSON
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#btn-menu').then(() => page.click('#btn-export'))]);
   const exported = JSON.parse(fs.readFileSync(await dl.path(), 'utf8'));
-  check(exported.version === 1 && exported.pieces.length === 2, 'eksport JSON: poprawna struktura');
+  check(exported.version === 2 && exported.pieces.length === 2 && Array.isArray(exported.scenery), 'eksport JSON: poprawna struktura v2');
   await page.setInputFiles('#file-import', { name: 'demo.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ version: 1, name: 'T', board: { w: 1500, h: 900 }, pieces: [{ id: '55212', x: 100, y: 100, rot: 0 }, { id: '55224', x: 500, y: 500, rot: 15 }] })) });
   await page.waitForTimeout(300);
   const imported = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')));
@@ -162,6 +162,45 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   const fitted = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces);
   check(fitted.length >= 3 && fitted.some((p) => p.id.startsWith('5521')), 'rysowanie: szkic zamieniony na proste i łuki');
   await page.screenshot({ path: path.join(OUT, 'desktop-fitted.png') });
+
+  // sceneria: wstaw drzewo i drogę, zmień rozmiar drogi, sprawdź zapis i 3D
+  const scen = await page.evaluate(() => {
+    const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); };
+    set('sel-group', 'trees'); set('sel-piece', 'conifer'); document.getElementById('btn-add').click();
+    set('sel-group', 'infra'); set('sel-piece', 'road'); document.getElementById('btn-add').click();
+    set('in-sel-w', 900); set('in-sel-h', 80);
+    const entryHidden = document.getElementById('sel-entry').parentElement.classList.contains('hidden');
+    const s = JSON.parse(localStorage.getItem('routelayout.v1'));
+    return { entryHidden, scenery: s.scenery, version: s.version, name: document.getElementById('sel-name').textContent };
+  });
+  check(scen.entryHidden && scen.scenery.length === 2 && scen.scenery[0].type === 'conifer', 'sceneria: drzewo i droga wstawione, zapisane w JSON v' + scen.version);
+  check(scen.scenery[1].w === 900 && scen.scenery[1].h === 80, 'sceneria: rozmiar drogi z panelu zaznaczenia (900×80)');
+  await page.click('#btn-rot-r');
+  const rot = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).scenery[1].rot);
+  check(rot === 15, 'sceneria: obrót zaznaczonego obiektu o 15°');
+  await page.click('#tab-3d'); await page.waitForTimeout(800);
+  const meshes = await page.evaluate(() => document.querySelector('#view3d canvas') ? 1 : 0);
+  await page.screenshot({ path: path.join(OUT, 'desktop-scenery-3d.png') });
+  await page.click('#tab-2d');
+  await page.screenshot({ path: path.join(OUT, 'desktop-scenery-2d.png') });
+  // przegląd wszystkich typów scenerii w 3D (zrzut do README / kontrola wizualna)
+  await page.click('#btn-new');
+  await page.evaluate(async () => {
+    const { SCENERY } = await import('./js/scenery.js');
+    const scenery = Object.entries(SCENERY).map(([type, def], i) => ({ type, x: 250 + (i % 5) * 380, y: 220 + Math.floor(i / 5) * 300, rot: 0, w: def.w, h: def.h }));
+    localStorage.setItem('routelayout.v1', JSON.stringify({ version: 2, name: 'Scenery', board: { w: 2000, h: 1000 }, pieces: [], scenery }));
+  });
+  await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(500);
+  const nTypes = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).scenery.length);
+  check(nTypes === 14, 'sceneria: wszystkie 14 typów wstawione i wczytane po przeładowaniu');
+  await page.click('#tab-3d'); await page.click('#btn-fit3d'); await page.waitForTimeout(900);
+  await page.screenshot({ path: path.join(OUT, 'desktop-scenery-all.png') });
+  await page.click('#tab-2d');
+  await page.evaluate(() => { const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); }; set('sel-group', 'infra'); set('sel-piece', 'road'); document.getElementById('btn-add').click(); });
+  await page.click('#btn-del');
+  const afterDel = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).scenery.length);
+  check(meshes === 1 && afterDel === 14, 'sceneria: usunięcie zaznaczonego obiektu');
+  await page.evaluate(() => { document.getElementById('sel-group').value = 'straight'; document.getElementById('sel-group').dispatchEvent(new Event('change')); });
 
   // i18n: przełączenie na DE zmienia teksty UI i nazwy w katalogu
   const de = await page.evaluate(() => {

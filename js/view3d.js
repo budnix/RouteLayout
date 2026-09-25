@@ -3,6 +3,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { OrbitControls } from '../vendor/OrbitControls.js';
 import { GAUGE } from './catalog.js';
+import { buildScenery3D } from './scenery.js';
 
 const RAIL_H = 2.5;          // wysokość szyny (Code 100 ≈ 2,5 mm)
 const RAIL_W = 1.2;
@@ -43,12 +44,16 @@ export class View3D {
     sun.position.set(1500, 2500, 1000);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.bias = -0.0006;
+    sun.shadow.normalBias = 1.5;
     this.sun = sun;
     this.scene.add(sun);
     this.scene.add(sun.target);
 
     this.trackGroup = new THREE.Group();
     this.scene.add(this.trackGroup);
+    this.sceneryGroup = new THREE.Group();
+    this.scene.add(this.sceneryGroup);
     this.boardMesh = null;
 
     this.mats = {
@@ -172,6 +177,11 @@ export class View3D {
     addMerged(ballastGeos, this.mats.ballast);
     addMerged(railGeos, this.mats.rail);
     addMerged(selGeos, this.mats.selected);
+
+    // sceneria
+    this.sceneryGroup.traverse((m) => m.geometry?.dispose());
+    this.sceneryGroup.clear();
+    for (const it of this.layout.scenery) this.sceneryGroup.add(buildScenery3D(it));
   }
 
   dispose() { this.renderer.dispose(); }

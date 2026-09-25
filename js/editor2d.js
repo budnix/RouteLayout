@@ -2,6 +2,7 @@
 // snap do otwartych portów, "kursor" – aktywny otwarty port do auto-rysowania.
 
 import { BY_ID, GAUGE } from './catalog.js';
+import { SCENERY, drawScenery2D } from './scenery.js';
 import { Layout, norm } from './layout.js';
 
 const d2r = (d) => (d * Math.PI) / 180;
@@ -12,7 +13,8 @@ export class Editor2D {
     this.ctx = canvas.getContext('2d');
     this.layout = layout;
     this.view = { scale: 0.4, ox: 40, oy: 40 }; // px na mm; przesunięcie w px
-    this.selected = null;          // element
+    this.selected = null;          // element toru
+    this.selectedScenery = null;   // obiekt scenerii
     this.cursor = null;            // { uid, idx } – aktywny otwarty port
     this.pointers = new Map();
     this.drag = null;
@@ -120,13 +122,25 @@ export class Editor2D {
   setAidGrid(enabled, size) { this.aidGrid = { enabled, size: Math.max(5, size || 50) }; this.draw(); }
 
   deleteSelected() {
+    if (this.selectedScenery) { const it = this.selectedScenery; this.selectedScenery = null; this.layout.removeScenery(it); this.emit('select'); return; }
     if (!this.selected) return;
     const p = this.selected;
     this.selected = null;
     this.layout.remove(p);
     this.emit('select');
   }
-  rotateSelected(deg) { if (this.selected) this.layout.rotate(this.selected, deg); }
+  rotateSelected(deg) {
+    if (this.selectedScenery) this.layout.moveScenery(this.selectedScenery, this.selectedScenery.x, this.selectedScenery.y, this.selectedScenery.rot + deg);
+    else if (this.selected) this.layout.rotate(this.selected, deg);
+  }
+  /** Wstawia obiekt scenerii na środku widoku i zaznacza go. */
+  addScenery(type) {
+    const c = this.toWorld(this.canvas.width / this.dpr / 2, this.canvas.height / this.dpr / 2);
+    const item = this.layout.addScenery(type, c.x, c.y, 0);
+    this.selectedScenery = item; this.selected = null;
+    this.draw(); this.emit('select');
+    return item;
+  }
 
   // ---- wejście ----
   pos(e) { const r = this.canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
@@ -146,8 +160,10 @@ export class Editor2D {
     const tol = 14 / this.view.scale; // ~14 px
     const port = this.nearestOpenPort(w, tol);
     const piece = this.layout.hitTest(w.x, w.y, Math.max(tol, 10));
-    this.drag = { start: p, last: p, moved: false, piece: port ? null : piece, port, ox: this.view.ox, oy: this.view.oy, px: piece?.x, py: piece?.y };
-    if (piece && !port) { this.selected = piece; this.emit('select'); this.draw(); }
+    const scen = !port && !piece ? this.layout.hitScenery(w.x, w.y) : null;
+    this.drag = { start: p, last: p, moved: false, piece: port ? null : piece, scen, port, ox: this.view.ox, oy: this.view.oy, px: piece?.x ?? scen?.x, py: piece?.y ?? scen?.y };
+    if (piece && !port) { this.selected = piece; this.selectedScenery = null; this.emit('select'); this.draw(); }
+    else if (scen) { this.selectedScenery = scen; this.selected = null; this.emit('select'); this.draw(); }
   }
 
   onMove(e) {
@@ -173,6 +189,9 @@ export class Editor2D {
     if (d.piece) {
       const dx = (p.x - d.start.x) / this.view.scale, dy = (p.y - d.start.y) / this.view.scale;
       this.layout.move(d.piece, d.px + dx, d.py + dy, d.piece.rot, false);
+    } else if (d.scen) {
+      const dx = (p.x - d.start.x) / this.view.scale, dy = (p.y - d.start.y) / this.view.scale;
+      this.layout.moveScenery(d.scen, d.px + dx, d.py + dy, d.scen.rot, false);
     } else {
       this.view.ox = d.ox + (p.x - d.start.x); this.view.oy = d.oy + (p.y - d.start.y);
       this.draw();
@@ -192,8 +211,13 @@ export class Editor2D {
     }
     if (!d.moved) {
       // tap
-      if (d.port) { this.setCursor(d.port); this.selected = d.port.piece; this.emit('select'); }
-      else if (!d.piece) { this.selected = null; this.emit('select'); this.draw(); }
+      if (d.port) { this.setCursor(d.port); this.selected = d.port.piece; this.selectedScenery = null; this.emit('select'); }
+      else if (!d.piece && !d.scen) { this.selected = null; this.selectedScenery = null; this.emit('select'); this.draw(); }
+      return;
+    }
+    if (d.scen) {
+      const { x, y } = d.scen; d.scen.x = d.px; d.scen.y = d.py;
+      this.layout.moveScenery(d.scen, x, y, d.scen.rot, true);
       return;
     }
     if (d.piece) {
@@ -259,6 +283,9 @@ export class Editor2D {
       ctx.stroke();
     }
 
+    // sceneria – warstwa terenu (drogi, stawy, wzgórza, perony) pod torami
+    for (const it of this.layout.scenery) if (SCENERY[it.type].layer === 'ground') drawScenery2D(ctx, it, it === this.selectedScenery);
+
     const segs = this.layout.worldSegments(8);
     const tracePath = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); };
     ctx.lineCap = 'butt'; ctx.lineJoin = 'round';
@@ -319,6 +346,9 @@ export class Editor2D {
         ctx.fillText(def.code, wpt.x, wpt.y);
       }
     }
+
+    // sceneria – obiekty nad torami (drzewa, budynki)
+    for (const it of this.layout.scenery) if (SCENERY[it.type].layer !== 'ground') drawScenery2D(ctx, it, it === this.selectedScenery);
 
     // szkic
     const strokes = this.stroke ? [...this.strokes, this.stroke] : this.strokes;

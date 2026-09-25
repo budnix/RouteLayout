@@ -6,6 +6,8 @@ A web app (HTML5, ES modules, Canvas 2D + three.js) for designing H0 model railw
 
 ![RouteLayout on desktop: 2D editor next to the 3D preview](docs/screenshot-desktop.png)
 
+![Scenery objects in the 3D preview](docs/screenshot-scenery.png)
+
 ## Features
 
 - Complete **PIKO A-Gleis H0** catalog (552xx series) with exact geometry: straights, curves R1–R4 / R9, 7.5° curves, standard, curved, three-way and Y turnouts, double slip, crossings, flex track, buffer stop
@@ -13,6 +15,7 @@ A web app (HTML5, ES modules, Canvas 2D + three.js) for designing H0 model railw
 - **Sketch mode**: draw the track path freehand with a finger or mouse, press *Finish drawing* and the app fits real PIKO pieces to it — straights, curves and turnouts where a second stroke branches off. Optional guide grid with configurable spacing
 - Drag pieces with a finger or mouse; nearby track ends snap together
 - **3D preview** with rails (16.5 mm gauge), sleepers, ballast, baseboard and shadows — rendered on demand to save battery
+- **Scenery**: trees, houses, station, warehouse, church, roads, platforms, turntable, tunnel portal, water tower, pond, hill — flat icons in 2D, simple procedural solids in 3D (no external models); move, rotate and resize them
 - Undo/redo, autosave, JSON import/export, PNG export, bill of materials with article numbers
 - Interface in **English, German and Polish** (auto-detected, switchable in the menu)
 - Configurable baseboard size, dark mode, PWA manifest
@@ -36,7 +39,8 @@ Then open `http://localhost:8080`.
 5. Drag pieces to move them; ends close to each other snap. Rotate with ⟲ ⟳ or the `R` key.
 6. Switch **2D / 3D / 2D+3D** in the top bar. In 3D: one finger orbits, two fingers zoom and pan.
 7. **Sketch mode** (✎): draw strokes where the track should go; start a new stroke on an existing one for a branch; a stroke starting at an open track end continues from it. *Finish drawing* fits pieces; *Undo* reverts the whole fit in one step. The guide grid checkbox and its spacing (menu) help keep strokes straight and parallel.
-8. Menu ☰: layout name, baseboard size, grid spacing, JSON export/import, PNG export, bill of materials.
+8. **Scenery**: pick a *Scenery: …* group, insert an object, drag it into place; the selection bar has rotate buttons and length/width fields (trees and the turntable scale uniformly).
+9. Menu ☰: layout name, baseboard size, grid spacing, JSON export/import, PNG export, bill of materials.
 
 Keyboard: `Ctrl/Cmd+Z` undo, `Ctrl/Cmd+Shift+Z` / `Ctrl+Y` redo, `Delete` remove, `R` / `Shift+R` rotate, `Enter` insert (or finish drawing), `D` toggle sketch mode, `Esc` leave sketch mode.
 
@@ -80,7 +84,8 @@ Other track systems (Roco, Tillig, Märklin C, Peco…) can be added by extendin
 - `js/editor2d.js` — Canvas 2D editor using Pointer Events (edit and sketch modes)
 - `js/normalize.js` — stroke normalisation: curvature-based segmentation into straights and arcs, circle/line fitting, snapping of radii (R1–R4, R9), arc angles and headings to the PIKO grid, DP decomposition of straights into the fewest pieces
 - `js/fitter.js` — turns normalised strokes into connected pieces (turnout placement where a stroke branches off, attachment to open ends); a greedy piece-by-piece fitter is kept as a fallback for sketches the normaliser cannot follow
-- `js/view3d.js` — three.js preview (rails, sleepers, ballast, baseboard), on-demand rendering
+- `js/scenery.js` — scenery catalog with 2D drawing and 3D builders (three.js primitives)
+- `js/view3d.js` — three.js preview (rails, sleepers, ballast, baseboard, scenery), on-demand rendering
 - `js/i18n.js` — UI and catalog translations (EN / DE / PL)
 - `js/main.js` — UI wiring
 - `vendor/` — three.js (MIT) copied from npm, no CDN
@@ -99,11 +104,12 @@ npm test            # smoke test in headless Chromium, screenshots in test-resul
 ## File format
 
 ```json
-{ "version": 1, "name": "Layout", "board": { "w": 2000, "h": 1000 },
-  "pieces": [ { "id": "55200", "x": 300, "y": 250, "rot": 0 } ] }
+{ "version": 2, "name": "Layout", "board": { "w": 2000, "h": 1000 },
+  "pieces":  [ { "id": "55200", "x": 300, "y": 250, "rot": 0 } ],
+  "scenery": [ { "type": "house", "x": 800, "y": 400, "rot": 15, "w": 120, "h": 90 } ] }
 ```
 
-`x, y` in mm (piece origin = port 0), `rot` in degrees.
+Track pieces: `x, y` in mm (piece origin = port 0), `rot` in degrees. Scenery: `x, y` is the object centre, `w` runs along its local X axis, `h` across. Version 1 files (without `scenery`) still load.
 
 ## Contributing
 
