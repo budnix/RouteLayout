@@ -66,7 +66,7 @@ for (const id of QUICK) {
 }
 // łuk w drugą stronę: ten sam artykuł, wejście portem 1
 const bR = document.createElement('button');
-bR.innerHTML = `R2 ↷<b>${t('pal.right')}</b>`; bR.title = t('pal.rightTitle');
+bR.innerHTML = `R2 <svg class="ic sm"><use href="#i-rotate-cw"/></svg><b>${t('pal.right')}</b>`; bR.title = t('pal.rightTitle');
 bR.addEventListener('click', () => editor.addPiece('55212', 1));
 quick.append(bR);
 
@@ -228,7 +228,7 @@ function applyLanguage() {
   applyDom();
   $('hint').textContent = t(editor.mode === 'draw' ? 'draw.hint' : 'pal.hint');
   fillGroups(); fillPieces();
-  bR.innerHTML = `R2 ↷<b>${t('pal.right')}</b>`; bR.title = t('pal.rightTitle');
+  bR.innerHTML = `R2 <svg class="ic sm"><use href="#i-rotate-cw"/></svg><b>${t('pal.right')}</b>`; bR.title = t('pal.rightTitle');
   quick.querySelectorAll('button').forEach((b, i) => { if (QUICK[i]) b.title = pieceName(BY_ID[QUICK[i]]); });
   refreshMenu();
 }

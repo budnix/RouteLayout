@@ -16,18 +16,32 @@
   <script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
 </head>
 <body>
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="i-logo" viewBox="0 0 24 24"><path d="M3 18c4-10 14-10 18 0"/><path d="M3 14c4-10 14-10 18 0"/><path d="M6 14.5l.6 2.6M10 12.2l.4 2.8M14 12.2l-.4 2.8M18 14.5l-.6 2.6"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 15-6.7L21 13"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+    <symbol id="i-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></symbol>
+    <symbol id="i-rotate-cw" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M20 20H8.5L3.6 15.1a2 2 0 0 1 0-2.8l8.5-8.5a2 2 0 0 1 2.8 0l5.7 5.7a2 2 0 0 1 0 2.8L14 19"/><path d="M6.5 12.5l6 6"/></symbol>
+  </svg>
   <header class="topbar">
-    <div class="brand"><span class="logo">▣</span> RouteLayout <span class="sub">H0 · PIKO A</span></div>
+    <div class="brand"><svg class="ic logo"><use href="#i-logo"/></svg> RouteLayout <span class="sub">H0 · PIKO A</span></div>
     <div class="topbar-actions">
-      <button id="btn-new" class="icon" data-i18n-title="top.new"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20H8.5L3.6 15.1a2 2 0 0 1 0-2.8l8.5-8.5a2 2 0 0 1 2.8 0l5.7 5.7a2 2 0 0 1 0 2.8L14 19"/><path d="M6.5 12.5l6 6"/></svg></button>
-      <button id="btn-undo" class="icon" data-i18n-title="top.undo">↶</button>
-      <button id="btn-redo" class="icon" data-i18n-title="top.redo">↷</button>
+      <button id="btn-new" class="icon" data-i18n-title="top.new"><svg class="ic"><use href="#i-eraser"/></svg></button>
+      <button id="btn-undo" class="icon" data-i18n-title="top.undo"><svg class="ic"><use href="#i-undo"/></svg></button>
+      <button id="btn-redo" class="icon" data-i18n-title="top.redo"><svg class="ic"><use href="#i-redo"/></svg></button>
       <div class="seg" role="tablist">
         <button id="tab-2d" class="active" role="tab">2D</button>
         <button id="tab-3d" role="tab">3D</button>
         <button id="tab-split" role="tab" class="wide-only">2D + 3D</button>
       </div>
-      <button id="btn-menu" class="icon" data-i18n-title="top.menu">☰</button>
+      <button id="btn-menu" class="icon" data-i18n-title="top.menu"><svg class="ic"><use href="#i-menu"/></svg></button>
     </div>
   </header>
 
@@ -35,14 +49,14 @@
     <section id="pane-2d" class="pane">
       <canvas id="canvas2d"></canvas>
       <div class="hud">
-        <button id="btn-fit2d" class="hud-btn" data-i18n-title="hud.fit">⤢</button>
-        <button id="btn-zoom-in" class="hud-btn">+</button>
-        <button id="btn-zoom-out" class="hud-btn">−</button>
-        <button id="btn-draw" class="hud-btn" data-i18n-title="draw.toggle">✎</button>
+        <button id="btn-fit2d" class="hud-btn" data-i18n-title="hud.fit"><svg class="ic"><use href="#i-fit"/></svg></button>
+        <button id="btn-zoom-in" class="hud-btn"><svg class="ic"><use href="#i-plus"/></svg></button>
+        <button id="btn-zoom-out" class="hud-btn"><svg class="ic"><use href="#i-minus"/></svg></button>
+        <button id="btn-draw" class="hud-btn" data-i18n-title="draw.toggle"><svg class="ic"><use href="#i-pencil"/></svg></button>
       </div>
       <div id="draw-bar" class="draw-bar hidden">
         <label class="chk"><input id="chk-grid" type="checkbox"> <span data-i18n="draw.grid"></span></label>
-        <button id="btn-undo-stroke" data-i18n-title="draw.undoStroke">↶</button>
+        <button id="btn-undo-stroke" data-i18n-title="draw.undoStroke"><svg class="ic"><use href="#i-undo"/></svg></button>
         <button id="btn-clear-sketch" data-i18n="draw.clear"></button>
         <button id="btn-finish" class="primary" data-i18n="draw.finish"></button>
       </div>
@@ -52,15 +66,15 @@
         <label class="size" id="sel-grade"><span data-i18n="sel.grade"></span><input id="in-sel-g" type="number" step="0.5" min="-8" max="8"></label>
         <label class="size" id="sel-size-w"><span data-i18n="sel.w"></span><input id="in-sel-w" type="number" min="10" step="10"></label>
         <label class="size" id="sel-size-h"><span data-i18n="sel.h"></span><input id="in-sel-h" type="number" min="10" step="10"></label>
-        <button id="btn-rot-l" data-i18n-title="sel.rotl">⟲</button>
-        <button id="btn-rot-r" data-i18n-title="sel.rotr">⟳</button>
-        <button id="btn-del" class="danger" data-i18n-title="sel.del">🗑</button>
+        <button id="btn-rot-l" data-i18n-title="sel.rotl"><svg class="ic"><use href="#i-rotate-ccw"/></svg></button>
+        <button id="btn-rot-r" data-i18n-title="sel.rotr"><svg class="ic"><use href="#i-rotate-cw"/></svg></button>
+        <button id="btn-del" class="danger" data-i18n-title="sel.del"><svg class="ic"><use href="#i-trash"/></svg></button>
       </div>
     </section>
     <section id="pane-3d" class="pane">
       <div id="view3d"></div>
       <div class="hud">
-        <button id="btn-fit3d" class="hud-btn" data-i18n-title="hud.fit3d">⤢</button>
+        <button id="btn-fit3d" class="hud-btn" data-i18n-title="hud.fit3d"><svg class="ic"><use href="#i-fit"/></svg></button>
       </div>
     </section>
   </main>
@@ -83,7 +97,7 @@
           <span data-i18n="pal.entry"></span>
           <select id="sel-entry"></select>
         </label>
-        <button id="btn-add" class="primary grow" data-i18n="pal.add"></button>
+        <button id="btn-add" class="primary grow"><svg class="ic"><use href="#i-plus"/></svg><span data-i18n="pal.add"></span></button>
       </div>
       <div class="quick" id="quick"></div>
       <p class="hint" id="hint" data-i18n="pal.hint"></p>
