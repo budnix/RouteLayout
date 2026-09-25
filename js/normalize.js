@@ -19,6 +19,7 @@ const K_STRAIGHT = 1 / 2200;     // |krzywizna| poniżej → prosta (R > 2,2 m)
 const K_CURVE = 1 / 1300;        // powyżej → łuk (histereza)
 const MIN_SEG = 90;              // krótsze segmenty scalamy z sąsiadem [mm]
 const MIN_STRAIGHT = 25;         // krótszą prostą pomijamy [mm]
+const MIN_SWEEP = 12;            // łuk o mniejszym kącie traktujemy jako prostą [°]
 
 // promienie katalogowe i elementy łukowe dla nich: [id, kąt]
 const RADII = [
@@ -80,8 +81,12 @@ export function segment(stroke, step = 5) {
     // sąsiedzi tej samej klasy → scal
     for (let i = 0; i + 1 < segs.length; i++) if (segs[i].c === segs[i + 1].c) { segs[i].i1 = segs[i + 1].i1; segs.splice(i + 1, 1); changed = true; break; }
   }
-  // dopasowanie geometrii
-  let prims = segs.map((g) => fitPrim(pts, g.i0, g.i1, g.c));
+  // dopasowanie geometrii; łuk o łącznym kącie < MIN_SWEEP to w intencji prosta (drżenie ręki)
+  let prims = segs.map((g) => {
+    if (g.c !== 0) { let acc = 0; for (let j = g.i0; j < g.i1; j++) acc += norm(tan[j + 1] - tan[j]); if (Math.abs(acc) < MIN_SWEEP) g.c = 0; }
+    return fitPrim(pts, g.i0, g.i1, g.c);
+  });
+  prims = mergePrims(pts, prims, step);
   // dopracowanie granic: przesuń granicę tam, gdzie suma reszt do obu modeli jest najmniejsza
   for (let pass = 0; pass < 2; pass++) {
     for (let i = 0; i + 1 < prims.length; i++) {
