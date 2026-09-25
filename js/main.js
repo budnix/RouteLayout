@@ -1,10 +1,10 @@
-import { CATALOG, GROUPS, QUICK, BY_ID } from './catalog.js';
+import { CATALOG, BY_ID, sampleSegment } from './catalog.js';
 import { Layout } from './layout.js';
 import { Editor2D } from './editor2d.js';
 import { View3D } from './view3d.js';
 import { t, pieceName, applyDom, setLang, getLang, LANGS } from './i18n.js';
 import { fitStrokes, normalizeStroke } from './fitter.js';
-import { SCENERY, SCENERY_GROUPS, sceneryName } from './scenery.js';
+import { SCENERY, SCENERY_GROUPS, sceneryName, drawScenery2D } from './scenery.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -23,63 +23,108 @@ const layout = new Layout();
 const editor = new Editor2D($('canvas2d'), layout);
 const view3d = new View3D($('view3d'), layout);
 
-// ---- paleta ----------------------------------------------------------------
-const selGroup = $('sel-group'), selPiece = $('sel-piece'), selEntry = $('sel-entry');
-function fillGroups() {
-  const cur = selGroup.value || 'straight';
-  selGroup.innerHTML = '';
-  for (const g of GROUPS) selGroup.append(new Option(t('group.' + g), g));
-  for (const g of SCENERY_GROUPS) selGroup.append(new Option(t('group.' + g), g));
-  selGroup.value = cur;
-}
-fillGroups();
+// ---- paleta: zakładki + lista ---------------------------------------------------
+const selEntry = $('sel-entry'), palList = $('pal-list'), palTabs = $('pal-tabs');
+let palTab = (() => { try { return localStorage.getItem('routelayout.tab') || 'piko'; } catch { return 'piko'; } })();
+const PIKO_SECTIONS = ['straight', 'curve', 'turnout', 'crossing', 'flex'];
 
-const isSceneryGroup = () => SCENERY_GROUPS.includes(selGroup.value);
-function fillPieces() {
-  selPiece.innerHTML = '';
-  if (isSceneryGroup()) {
-    for (const [type, def] of Object.entries(SCENERY)) if (def.group === selGroup.value) selPiece.append(new Option(sceneryName(type, getLang()), type));
-    selEntry.parentElement.classList.add('hidden');
+/** Miniatura kształtu elementu: segmenty geometrii przeskalowane do 60×34. */
+function pieceIcon(def) {
+  const geo = def.geo;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const polys = geo.segments.map((seg) => sampleSegment(seg, 12));
+  for (const poly of polys) for (const [x, y] of poly) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+  const w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
+  const sc = Math.min(54 / w, 28 / h, 0.25);
+  const ox = 30 - ((minX + maxX) / 2) * sc, oy = 17 - ((minY + maxY) / 2) * sc;
+  const d = polys.map((poly) => poly.map(([x, y], k) => `${k ? 'L' : 'M'}${(ox + x * sc).toFixed(1)} ${(oy + y * sc).toFixed(1)}`).join(' ')).join(' ');
+  return `<svg class="pal-icon" viewBox="0 0 60 34" aria-hidden="true"><path d="${d}"/></svg>`;
+}
+
+/** Miniatura obiektu scenerii: rysowana funkcją 2D na małym canvasie. */
+function sceneryIcon(type) {
+  const def = SCENERY[type];
+  const c = document.createElement('canvas'); c.width = 120; c.height = 68; c.className = 'pal-icon';
+  const ctx = c.getContext('2d');
+  const sc = Math.min(100 / def.w, 52 / def.h);
+  ctx.setTransform(sc, 0, 0, sc, 60, 34);
+  drawScenery2D(ctx, { type, x: 0, y: 0, rot: 0, w: def.w, h: def.h }, false);
+  return c;
+}
+
+const fmt = (v) => (Math.round(v * 100) / 100).toString().replace('.', ',');
+function pieceMeta(def) {
+  if (def.turntable) return '⌀ 320 mm';
+  if (def.group === 'curve') return t('meta.arc', { r: fmt(def.r), a: fmt(def.deg) });
+  if (def.group === 'turnout' || def.group === 'crossing') {
+    const seg = def.geo.segments[0];
+    const L = seg.type === 'line' ? Math.hypot(seg.x2 - seg.x1, seg.y2 - seg.y1) : 0;
+    const arc = def.geo.segments.find((g) => g.type === 'arc');
+    const a = arc ? Math.abs(arc.a1 - arc.a0) : (def.code.startsWith('K') ? +def.code.slice(1) : 15);
+    return L ? t('meta.turnout', { L: fmt(L), a: fmt(a) }) : t('meta.arc', { r: fmt(arc.r), a: fmt(a) });
+  }
+  return t('meta.len', { L: fmt(def.len || 0) });
+}
+
+const ic = (name) => `<svg class="ic"><use href="#${name}"/></svg>`;
+
+function buildList() {
+  palList.innerHTML = '';
+  palTabs.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.tab === palTab));
+  $('entry-row').classList.toggle('hidden', palTab === 'scenery');
+  const section = (label) => { const h = document.createElement('div'); h.className = 'pal-section'; h.textContent = label; palList.append(h); };
+  if (palTab === 'scenery') {
+    for (const g of SCENERY_GROUPS) {
+      section(t('group.' + g));
+      for (const [type, def] of Object.entries(SCENERY)) if (def.group === g) {
+        const row = document.createElement('div');
+        row.className = 'pal-item'; row.dataset.type = type; row.setAttribute('role', 'listitem');
+        row.append(sceneryIcon(type));
+        row.insertAdjacentHTML('beforeend', `<div class="pal-text"><div class="pal-title">${sceneryName(type, getLang())}</div><div class="pal-desc">${t('meta.size', { w: def.w, h: def.h })}</div></div>`);
+        row.addEventListener('click', () => editor.addScenery(type));
+        palList.append(row);
+      }
+    }
     return;
   }
-  selEntry.parentElement.classList.remove('hidden');
-  for (const p of CATALOG.filter((p) => p.group === selGroup.value)) {
-    selPiece.append(new Option(`${p.id} · ${p.code} — ${pieceName(p)}${p.verified === false ? ' ' + t('pal.unverified') : ''}`, p.id));
+  const groups = palTab === 'piko' ? PIKO_SECTIONS : ['accessory'];
+  for (const g of groups) {
+    const items = CATALOG.filter((p) => p.group === g);
+    if (!items.length) continue;
+    if (palTab === 'piko') section(t('group.' + g));
+    for (const def of items) {
+      const row = document.createElement('div');
+      row.className = 'pal-item'; row.dataset.id = def.id; row.setAttribute('role', 'listitem');
+      row.innerHTML = `${pieceIcon(def)}<div class="pal-text"><div class="pal-title">${def.code}<span class="pal-id">${def.id}</span></div><div class="pal-desc">${pieceName(def)}${def.verified === false ? ' ' + t('pal.unverified') : ''}</div></div><div class="pal-meta">${pieceMeta(def)}</div>`;
+      if (def.group === 'curve') {
+        const acts = document.createElement('div'); acts.className = 'pal-actions';
+        acts.innerHTML = `<button type="button" data-entry="0" title="${t('pal.left')}">${ic('i-rotate-ccw')}</button><button type="button" data-entry="1" title="${t('pal.rightBtn')}">${ic('i-rotate-cw')}</button>`;
+        acts.querySelectorAll('button').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); editor.addPiece(def.id, +b.dataset.entry); }));
+        row.append(acts);
+      }
+      row.addEventListener('click', () => editor.addPiece(def.id, def.group === 'curve' ? 0 : +selEntry.value || 0));
+      palList.append(row);
+    }
   }
-  fillEntry();
 }
-const PORT_LABEL = { turnout: ['port.toe', 'port.straight', 'port.branch', 'port.branch2'], crossing: ['A1', 'A2', 'B1', 'B2'], turntable: ['port.bridgeA', 'port.bridgeB'] };
+
 function fillEntry() {
-  if (isSceneryGroup()) return;
-  const def = BY_ID[selPiece.value];
+  const cur = selEntry.value || '0';
   selEntry.innerHTML = '';
-  def.geo.ports.forEach((_, i) => {
-    const key = (PORT_LABEL[def.turntable ? 'turntable' : def.group] || ['port.start', 'port.end'])[i];
-    const lbl = key ? (key.startsWith('port.') ? t(key) : key) : t('port.n', { i });
-    selEntry.append(new Option(`${i}: ${lbl}`, String(i)));
-  });
+  const labels = ['port.start', 'port.n', 'port.n', 'port.n'];
+  labels.forEach((key, i) => selEntry.append(new Option(i === 0 ? `0: ${t('port.start')}` : `${i}: ${t('port.generic', { i })}`, String(i))));
+  selEntry.value = cur;
 }
-selGroup.addEventListener('change', fillPieces);
-selPiece.addEventListener('change', fillEntry);
-fillPieces();
+palTabs.addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-tab]'); if (!b) return;
+  palTab = b.dataset.tab; try { localStorage.setItem('routelayout.tab', palTab); } catch { /* ignoruj */ }
+  buildList();
+});
+fillEntry();
+buildList();
 
-function insertSelected() { if (isSceneryGroup()) editor.addScenery(selPiece.value); else editor.addPiece(selPiece.value, +selEntry.value); }
-$('btn-add').addEventListener('click', insertSelected);
-
-const quick = $('quick');
-for (const id of QUICK) {
-  const p = BY_ID[id];
-  const b = document.createElement('button');
-  b.innerHTML = `${p.code}<b>${p.id}</b>`;
-  b.title = pieceName(p);
-  b.addEventListener('click', () => editor.addPiece(id, 0));
-  quick.append(b);
-}
-// łuk w drugą stronę: ten sam artykuł, wejście portem 1
-const bR = document.createElement('button');
-bR.innerHTML = `R2 <svg class="ic sm"><use href="#i-rotate-cw"/></svg><b>${t('pal.right')}</b>`; bR.title = t('pal.rightTitle');
-bR.addEventListener('click', () => editor.addPiece('55212', 1));
-quick.append(bR);
+/** Programowe wstawianie (testy, konsola): tor po id z portem wejściowym albo obiekt scenerii po typie. */
+function insert(idOrType, entry = 0) { return SCENERY[idOrType] ? editor.addScenery(idOrType) : editor.addPiece(idOrType, entry); }
 
 // chowanie panelu bocznego (szerokie ekrany)
 function setSide(collapsed) {
@@ -120,7 +165,7 @@ $('btn-zoom-out').addEventListener('click', () => editor.zoomAt(editor.canvas.cl
 $('btn-fit3d').addEventListener('click', () => view3d.fit());
 
 // hak diagnostyczny (testy, konsola)
-window.__routelayout = { layout, editor, view3d };
+window.__routelayout = { layout, editor, view3d, insert };
 
 // ---- tryb rysowania ----------------------------------------------------------
 const gridPrefs = (() => { try { return JSON.parse(localStorage.getItem('routelayout.grid')) || {}; } catch { return {}; } })();
@@ -205,7 +250,7 @@ document.addEventListener('keydown', (e) => {
   else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); layout.redo(); }
   else if (e.key === 'Delete' || e.key === 'Backspace') { editor.deleteSelected(); }
   else if (e.key === 'r') editor.rotateSelected(e.shiftKey ? -15 : 15);
-  else if (e.key === 'Enter') { if (editor.mode === 'draw') finishDrawing(); else insertSelected(); }
+  else if (e.key === 'Enter') { if (editor.mode === 'draw') finishDrawing(); }
   else if (e.key === 'Escape' && editor.mode === 'draw') setDrawMode(false);
   else if (e.key === 'd') setDrawMode(editor.mode !== 'draw');
 });
@@ -265,9 +310,7 @@ selLang.addEventListener('change', () => { setLang(selLang.value); applyLanguage
 function applyLanguage() {
   applyDom();
   $('hint').textContent = t(editor.mode === 'draw' ? 'draw.hint' : 'pal.hint');
-  fillGroups(); fillPieces();
-  bR.innerHTML = `R2 <svg class="ic sm"><use href="#i-rotate-cw"/></svg><b>${t('pal.right')}</b>`; bR.title = t('pal.rightTitle');
-  quick.querySelectorAll('button').forEach((b, i) => { if (QUICK[i]) b.title = pieceName(BY_ID[QUICK[i]]); });
+  fillEntry(); buildList();
   refreshMenu();
 }
 applyDom();

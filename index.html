@@ -86,24 +86,15 @@
   <aside class="palette" id="palette">
     <div class="palette-grip" id="palette-grip"><span></span></div>
     <div class="palette-body">
-      <div class="row">
-        <label class="field">
-          <span data-i18n="pal.group"></span>
-          <select id="sel-group"></select>
-        </label>
-        <label class="field grow">
-          <span data-i18n="pal.piece"></span>
-          <select id="sel-piece"></select>
-        </label>
+      <div class="seg tabs" id="pal-tabs" role="tablist">
+        <button data-tab="piko" class="active" role="tab" data-i18n="tab.piko"></button>
+        <button data-tab="accessory" role="tab" data-i18n="tab.accessory"></button>
+        <button data-tab="scenery" role="tab" data-i18n="tab.scenery"></button>
       </div>
-      <div class="row">
-        <label class="field">
-          <span data-i18n="pal.entry"></span>
-          <select id="sel-entry"></select>
-        </label>
-        <button id="btn-add" class="primary grow"><svg class="ic"><use href="#i-plus"/></svg><span data-i18n="pal.add"></span></button>
+      <div class="row compact" id="entry-row">
+        <label class="field grow"><span data-i18n="pal.entry"></span><select id="sel-entry"></select></label>
       </div>
-      <div class="quick" id="quick"></div>
+      <div id="pal-list" class="pal-list" role="list"></div>
       <p class="hint" id="hint" data-i18n="pal.hint"></p>
     </div>
   </aside>

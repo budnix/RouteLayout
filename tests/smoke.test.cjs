@@ -189,10 +189,8 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     document.getElementById('btn-menu').click();
     document.getElementById('btn-clear').click();
     document.querySelector('#menu [data-close]').click();
-    set('sel-group', 'turnout'); set('sel-piece', '55220'); set('sel-entry', '0');
-    document.getElementById('btn-add').click();                 // WL, kursor -> port 1 (prosto)
-    set('sel-group', 'straight'); set('sel-piece', '55200');
-    document.getElementById('btn-add').click();                 // G239 za prostą
+    window.__routelayout.insert('55220', 0);                 // WL, kursor -> port 1 (prosto)
+    window.__routelayout.insert('55200');                 // G239 za prostą
     const s = JSON.parse(localStorage.getItem('routelayout.v1'));
     return s.pieces;
   });
@@ -309,10 +307,11 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   // sceneria: wstaw drzewo i drogę, zmień rozmiar drogi, sprawdź zapis i 3D
   const scen = await page.evaluate(() => {
     const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); };
-    set('sel-group', 'trees'); set('sel-piece', 'conifer'); document.getElementById('btn-add').click();
-    set('sel-group', 'infra'); set('sel-piece', 'road'); document.getElementById('btn-add').click();
+    window.__routelayout.insert('conifer');
+    window.__routelayout.insert('road');
     set('in-sel-w', 900); set('in-sel-h', 80);
-    const entryHidden = document.getElementById('sel-entry').parentElement.classList.contains('hidden');
+    document.querySelector('#pal-tabs button[data-tab="scenery"]').click();
+    const entryHidden = document.getElementById('entry-row').classList.contains('hidden');
     const s = JSON.parse(localStorage.getItem('routelayout.v1'));
     return { entryHidden, scenery: s.scenery, version: s.version, name: document.getElementById('sel-name').textContent };
   });
@@ -339,15 +338,15 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.click('#tab-3d'); await page.click('#btn-fit3d'); await page.waitForTimeout(900);
   await page.screenshot({ path: path.join(OUT, 'desktop-scenery-all.png') });
   await page.click('#tab-2d');
-  await page.evaluate(() => { const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); }; set('sel-group', 'infra'); set('sel-piece', 'road'); document.getElementById('btn-add').click(); });
+  await page.evaluate(() => { const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); }; window.__routelayout.insert('road'); });
   await page.click('#btn-del');
   const afterDel = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).scenery.length);
   check(meshes === 1 && afterDel === 14, 'sceneria: usunięcie zaznaczonego obiektu');
-  await page.evaluate(() => { document.getElementById('sel-group').value = 'straight'; document.getElementById('sel-group').dispatchEvent(new Event('change')); });
+  await page.evaluate(() => document.querySelector('#pal-tabs button[data-tab="piko"]').click());
 
   // obrotnica w UI: wstaw, stuknij obrzeże, doklej prostą, ustaw nachylenie, 3D
   await page.click('#btn-new');
-  await page.evaluate(() => { const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); }; set('sel-group', 'accessory'); set('sel-piece', 'TT'); document.getElementById('btn-add').click(); });
+  await page.evaluate(() => { const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); }; window.__routelayout.insert('TT'); });
   await page.click('#btn-fit2d');
   const ttInfo = await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('routelayout.v1')); return s.pieces[0]; });
   // stuknięcie w obrzeże pod kątem 120° tworzy tam port i ustawia kursor
@@ -359,7 +358,7 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.mouse.click(rimPx.x, rimPx.y);
   const rimState = await page.evaluate(() => { const { layout, editor } = window.__routelayout; const c = editor.cursorPort(); return { angles: layout.pieces[0].angles, cursorA: c && Math.round(c.a) }; });
   check(rimState.angles.includes(120) && rimState.cursorA === 120, 'obrotnica UI: stuknięcie w obrzeże → port pod 120° i kursor');
-  await page.evaluate(() => { const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); }; set('sel-group', 'straight'); set('sel-piece', '55200'); document.getElementById('btn-add').click(); set('in-sel-g', 4); });
+  await page.evaluate(() => { const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); }; window.__routelayout.insert('55200'); set('in-sel-g', 4); });
   const after = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces);
   check(after.length === 2 && after[1].id === '55200' && after[1].rot === 120 && Math.abs(after[1].dz - 9.5628) < 0.01, 'obrotnica UI: prosta doklejona do portu 120°, nachylenie 4% z panelu');
   await page.click('#tab-3d'); await page.click('#btn-fit3d'); await page.waitForTimeout(800);
@@ -375,15 +374,31 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   check(wAfter > wBefore + 300 && sideSaved === '1', `panel boczny: schowany, canvas ${wBefore} → ${wAfter} px`);
   await page.click('#btn-side'); await page.waitForTimeout(200);
 
+  // paleta-lista: klik w wiersz wstawia element, przycisk „w prawo” przy łuku daje skręt w drugą stronę
+  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); document.querySelector('#pal-tabs button[data-tab="piko"]').click(); });
+  const rows = await page.evaluate(() => ({ n: document.querySelectorAll('.pal-item').length, sections: [...document.querySelectorAll('.pal-section')].map((e) => e.textContent), icons: document.querySelectorAll('.pal-item svg.pal-icon path').length }));
+  check(rows.n >= 28 && rows.sections.length === 5 && rows.icons >= 28, `paleta: ${rows.n} wierszy w ${rows.sections.length} sekcjach, miniatury SVG`);
+  await page.click('.pal-item[data-id="55200"]');
+  await page.click('.pal-item[data-id="55212"] button[data-entry="1"]');
+  const palState = await page.evaluate(() => window.__routelayout.layout.pieces.map((p) => [p.id, Math.round(p.rot)]));
+  // R2 portem 1 za prostą (kierunek 0°): rot = 180 − 30 = 150 → łuk skręca w prawo (wyjście pod −30°)
+  check(palState.length === 2 && palState[1][0] === '55212' && palState[1][1] === 150, 'paleta: prosta + R2 „w prawo” (wejście portem 1) (' + JSON.stringify(palState) + ')');
+  await page.evaluate(() => document.querySelector('#pal-tabs button[data-tab="scenery"]').click());
+  await page.click('.pal-item[data-type="house"]');
+  const scen1 = await page.evaluate(() => window.__routelayout.layout.scenery.length);
+  check(scen1 === 1, 'paleta: zakładka Sceneria wstawia obiekt z listy');
+  await page.evaluate(() => document.querySelector('#pal-tabs button[data-tab="piko"]').click());
+
   // i18n: przełączenie na DE zmienia teksty UI i nazwy w katalogu
   const de = await page.evaluate(() => {
     const sel = document.getElementById('sel-lang'); sel.value = 'de'; sel.dispatchEvent(new Event('change'));
-    return { add: document.getElementById('btn-add').textContent, group: document.getElementById('sel-group').selectedOptions[0].text,
-      piece: document.getElementById('sel-piece').selectedOptions[0].text, lang: document.documentElement.lang };
+    document.querySelector('#pal-tabs button[data-tab="piko"]').click();
+    return { tab: document.querySelector('#pal-tabs button[data-tab="piko"]').textContent, group: document.querySelector('.pal-section').textContent,
+      piece: document.querySelector('.pal-item .pal-desc').textContent, lang: document.documentElement.lang };
   });
-  check(de.lang === 'de' && de.add.includes('Einfügen') && de.group === 'Gerade Gleise' && de.piece.includes('Gerades Gleis'), 'i18n: przełączenie na DE tłumaczy UI i katalog');
-  const pl = await page.evaluate(() => { const sel = document.getElementById('sel-lang'); sel.value = 'pl'; sel.dispatchEvent(new Event('change')); return document.getElementById('btn-add').textContent; });
-  check(pl.includes('Wstaw'), 'i18n: powrót do PL');
+  check(de.lang === 'de' && de.tab.includes('PIKO') && de.group === 'Gerade Gleise' && de.piece.includes('Gerades Gleis'), 'i18n: przełączenie na DE tłumaczy UI i katalog');
+  const pl = await page.evaluate(() => { const sel = document.getElementById('sel-lang'); sel.value = 'pl'; sel.dispatchEvent(new Event('change')); return document.querySelector('#pal-tabs button[data-tab="scenery"]').textContent; });
+  check(pl.includes('Sceneria'), 'i18n: powrót do PL');
 
   // ---- telefon ----
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

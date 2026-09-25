@@ -34,10 +34,10 @@ Then open `http://localhost:8080`.
 
 ## How to draw
 
-1. Choose a group and a PIKO piece from the list (or use the quick buttons) and press **Insert**.
+1. The palette has three tabs — **PIKO A**, **Accessories**, **Scenery** — each a list of rows with a shape thumbnail, code, article number, description and the key dimensions. Tap a row to insert it; curves have *left* / *right* buttons.
 2. The orange dot with an arrow is the **active track end**. The next inserted piece attaches there with the right angle.
 3. Tap any blue dot (open end) to move the active end there — e.g. onto a turnout's branch.
-4. **Entry port** selects which end of the new piece connects to the active end (a curve via port 1 turns the other way; a turnout via port 2 is entered from its branch).
+4. **Entry port** selects which end of the new piece connects to the active end (e.g. a turnout via port 2 is entered from its branch).
 5. Drag pieces to move them; ends close to each other snap. Rotate with ⟲ ⟳ or the `R` key.
 6. Switch **2D / 3D / 2D+3D** in the top bar. In 3D: one finger orbits, two fingers zoom and pan.
 7. **Sketch mode** (✎): draw strokes where the track should go; start a new stroke on an existing one for a branch; a stroke starting at an open track end continues from it. *Finish drawing* fits pieces; *Undo* reverts the whole fit in one step. The guide grid checkbox and its spacing (menu) help keep strokes straight and parallel. *Normalise lines* (on by default) acts the moment you lift your finger: the stroke you just drew is replaced by a clean straight or an arc with a PIKO radius (a 7° bend becomes 7.5°, r ≈ 430 mm becomes R2), so what you see is what *Finish drawing* will build; switch it off to have the track follow your stroke literally. The normaliser reasons from the PIKO palette: a bend tighter than R1 that only sweeps a few degrees cannot be built, so it is read as hand jitter and straightened, while a long tight bend is read as "as tight as possible" and becomes R1; alternating wiggles that stay within a few centimetres of a straight collapse into that straight, but a genuine S-curve (two R2 arcs) is kept.
@@ -80,7 +80,7 @@ Keyboard: `Ctrl/Cmd+Z` undo, `Ctrl/Cmd+Shift+Z` / `Ctrl+Y` redo, `Delete` remove
 
 Curved turnouts are modelled as two arcs sharing a start point (as in AnyRail/SCARM libraries); PIKO recommends a G62 filler after them.
 
-Other track systems (Roco, Tillig, Märklin C, Peco…) can be added by extending `js/catalog.js` — every piece is just a list of line/arc segments plus connection ports.
+Other track systems (Roco, Tillig, Märklin C, Peco…) can be added by extending `js/catalog.js` — every piece is just a list of line/arc segments plus connection ports; the palette lists whatever the catalog contains, with thumbnails generated from the geometry.
 
 ## Project structure
 
