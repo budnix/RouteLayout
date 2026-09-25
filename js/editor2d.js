@@ -270,7 +270,7 @@ export class Editor2D {
 
     // blat
     const { w, h } = this.layout.board;
-    ctx.fillStyle = getCSS('--c-board', '#f7f4ea');
+    ctx.fillStyle = tint(this.layout.board.color, getCSS('--c-board', '#f7f4ea'));
     ctx.fillRect(0, 0, w, h);
     ctx.lineWidth = 2 / s;
     ctx.strokeStyle = getCSS('--c-board-edge', '#b9a98a');
@@ -406,6 +406,15 @@ export class Editor2D {
       }
     }
   }
+}
+
+/** Bardzo jasna wersja koloru blatu (2D ma zostać czytelne): 82% w stronę tła planu. */
+function tint(hex, base) {
+  if (!hex || !/^#[0-9a-f]{6}$/i.test(hex)) return base;
+  const m = base.match(/#([0-9a-f]{6})/i);
+  const b = m ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : [247, 244, 234];
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return `rgb(${c.map((v, i) => Math.round(v * 0.18 + b[i] * 0.82)).join(',')})`;
 }
 
 function getCSS(name, fallback) {

@@ -44,7 +44,7 @@ Then open `http://localhost:8080`.
 8. **Turntable** (Accessories → TT): insert it, tap its rim where a stall track should start — the orange cursor moves there — then insert pieces as usual. ⟲ ⟳ rotate the bridge; the ⌀ field sets the pit diameter.
 9. **Heights**: with a track piece selected, *height* sets the start height of the piece and shifts everything connected to it; *grade %* tilts the piece and raises everything beyond its exits. Height labels appear on the 2D plan.
 10. **Scenery**: pick a *Scenery: …* group, insert an object, drag it into place; the selection bar has rotate buttons and length/width fields (trees and the turntable scale uniformly).
-11. Menu ☰: layout name, baseboard size, grid spacing, JSON export/import, PNG export, bill of materials.
+11. Menu ☰: layout name, baseboard size and colour (picker or presets: grass, plywood, grey, white, earth), grid spacing, JSON export/import, PNG export, bill of materials.
 
 Keyboard: `Ctrl/Cmd+Z` undo, `Ctrl/Cmd+Shift+Z` / `Ctrl+Y` redo, `Delete` remove, `R` / `Shift+R` rotate, `Enter` insert (or finish drawing), `D` toggle sketch mode, `Esc` leave sketch mode.
 
@@ -109,7 +109,7 @@ npm test            # smoke test in headless Chromium, screenshots in test-resul
 ## File format
 
 ```json
-{ "version": 2, "name": "Layout", "board": { "w": 2000, "h": 1000 },
+{ "version": 2, "name": "Layout", "board": { "w": 2000, "h": 1000, "color": "#5f8f4a" },
   "pieces":  [ { "id": "55200", "x": 300, "y": 250, "rot": 0 } ],
   "scenery": [ { "type": "house", "x": 800, "y": 400, "rot": 15, "w": 120, "h": 90 } ] }
 ```

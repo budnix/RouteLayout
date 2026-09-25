@@ -129,6 +129,11 @@ select, input[type=text], input[type=number] {
 .quick button b { display: block; font-size: 11px; color: var(--c-muted); font-weight: 500; }
 .hint { margin: 0; font-size: 12px; color: var(--c-muted); }
 
+input[type=color] { width: 56px; min-height: 40px; padding: 2px 4px; border: 1px solid var(--c-border); border-radius: 10px; background: var(--c-panel); }
+.swatches { display: flex; gap: 6px; align-items: end; padding-bottom: 2px; }
+.swatches button { width: 32px; height: 32px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--c-border); }
+.swatches button.active { border-color: var(--c-accent); box-shadow: 0 0 0 2px var(--c-accent); }
+
 /* arkusz menu */
 .sheet { position: fixed; inset: 0; z-index: 20; }
 .sheet-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.4); }

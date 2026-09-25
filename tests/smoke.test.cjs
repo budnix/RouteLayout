@@ -115,6 +115,19 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.screenshot({ path: path.join(OUT, 'desktop-menu.png') });
   await page.click('#menu button[data-close]');
 
+  // kolor makiety: swatch + zapis + 3D
+  await page.click('#btn-menu');
+  await page.click('#swatches button[data-color="#c9a76b"]');
+  const boardColor = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).board.color);
+  check(boardColor === '#c9a76b', 'kolor makiety: sklejka zapisana w układzie');
+  await page.click('#menu button[data-close]');
+  await page.click('#tab-3d'); await page.waitForTimeout(600);
+  const shot2 = await page.locator('#view3d canvas').screenshot();
+  const px2 = await page.evaluate(async (b64) => { const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode(); const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0); return [...g.getImageData(Math.floor(img.width / 2), Math.floor(img.height * 0.7), 1, 1).data]; }, shot2.toString('base64'));
+  check(px2[0] > px2[2] + 30, `kolor makiety: blat w 3D beżowy (${px2.slice(0, 3)})`);
+  await page.click('#tab-2d');
+  await page.click('#btn-menu'); await page.click('#swatches button[data-color="#5f8f4a"]'); await page.click('#menu button[data-close]');
+
   // eksport JSON -> import JSON
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#btn-menu').then(() => page.click('#btn-export'))]);
   const exported = JSON.parse(fs.readFileSync(await dl.path(), 'utf8'));

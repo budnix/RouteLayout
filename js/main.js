@@ -203,6 +203,8 @@ menu.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click
 function refreshMenu() {
   $('in-name').value = layout.name;
   $('in-w').value = layout.board.w; $('in-h').value = layout.board.h;
+  $('in-board-color').value = layout.board.color || '#5f8f4a';
+  $('swatches').querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.color === (layout.board.color || '#5f8f4a')));
   const bom = $('bom');
   bom.innerHTML = '';
   for (const { id, n, def } of layout.bom()) {
@@ -212,6 +214,8 @@ function refreshMenu() {
   bom.insertAdjacentHTML('beforeend', `<div class="total">${t('bom.total', { n: layout.pieces.length, m: (total / 1000).toFixed(2) })}</div>`);
 }
 $('in-name').addEventListener('change', (e) => { layout.name = e.target.value; layout.save(); });
+$('in-board-color').addEventListener('input', (e) => { layout.setBoardColor(e.target.value); refreshMenu(); });
+$('swatches').addEventListener('click', (e) => { const b = e.target.closest('button[data-color]'); if (b) { layout.setBoardColor(b.dataset.color); refreshMenu(); } });
 $('btn-board').addEventListener('click', () => layout.setBoard(Math.max(200, +$('in-w').value || 2000), Math.max(200, +$('in-h').value || 1000)));
 $('btn-clear').addEventListener('click', () => { if (confirm(t('confirm.clear'))) { editor.selected = null; editor.cursor = null; layout.clear(); } });
 

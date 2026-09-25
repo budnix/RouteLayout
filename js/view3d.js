@@ -117,6 +117,7 @@ export class View3D {
 
     // blat
     const { w, h } = this.layout.board;
+    this.mats.board.color.set(this.layout.board.color || '#5f8f4a');
     if (this.boardMesh) { this.scene.remove(this.boardMesh); this.boardMesh.children.forEach((m) => m.geometry.dispose()); }
     this.mats.board.side = THREE.DoubleSide;
     const board = new THREE.Group();

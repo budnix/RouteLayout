@@ -12,6 +12,7 @@ const SNAP_ANG = 1.0;    // stopnie
 const SNAP_Z = 3;        // mm – różnica wysokości, przy której porty jeszcze się łączą
 const RIM_TOL = 14;      // mm – tolerancja dociągania do obrzeża obrotnicy
 const STORAGE_KEY = 'routelayout.v1';
+export const DEFAULT_BOARD_COLOR = '#5f8f4a';
 
 let nextUid = 1;
 
@@ -19,7 +20,7 @@ export class Layout {
   constructor() {
     this.pieces = [];
     this.scenery = [];
-    this.board = { w: 2000, h: 1000 };
+    this.board = { w: 2000, h: 1000, color: DEFAULT_BOARD_COLOR };
     this.name = 'Layout';
     this.listeners = new Set();
     this.undoStack = [];
@@ -141,11 +142,12 @@ export class Layout {
   clear() { this.pushUndo(); this.pieces = []; this.scenery = []; this.emit('change'); }
   /** Nowy układ: elementy, nazwa i blat od zera; historia undo wyczyszczona. */
   reset(name) {
-    this.pieces = []; this.scenery = []; this.board = { w: 2000, h: 1000 }; this.name = name;
+    this.pieces = []; this.scenery = []; this.board = { w: 2000, h: 1000, color: DEFAULT_BOARD_COLOR }; this.name = name;
     this.undoStack.length = 0; this.redoStack.length = 0;
     this.emit('change');
   }
-  setBoard(w, h) { this.pushUndo(); this.board = { w, h }; this.emit('change'); }
+  setBoard(w, h) { this.pushUndo(); this.board = { ...this.board, w, h }; this.emit('change'); }
+  setBoardColor(color) { if (!/^#[0-9a-f]{6}$/i.test(color) || color === this.board.color) return; this.pushUndo(); this.board = { ...this.board, color }; this.emit('change'); }
 
   /**
    * Szuka otwartego portu innego elementu w pobliżu któregoś z portów `piece`
@@ -316,7 +318,8 @@ export class Layout {
     if (!obj || !Array.isArray(obj.pieces)) throw new Error('Nieprawidłowy plik układu');
     this.pushUndo();
     this.name = obj.name || 'Layout';
-    this.board = obj.board || this.board;
+    this.board = { w: 2000, h: 1000, color: DEFAULT_BOARD_COLOR, ...(obj.board || {}) };
+    if (!/^#[0-9a-f]{6}$/i.test(this.board.color || '')) this.board.color = DEFAULT_BOARD_COLOR;
     this.pieces = obj.pieces.filter((p) => BY_ID[p.id]).map((p) => {
       const o = { uid: nextUid++, id: p.id, x: +p.x || 0, y: +p.y || 0, rot: norm(+p.rot || 0), z: +p.z || 0, dz: +p.dz || 0 };
       if (BY_ID[p.id].turntable) Object.assign(o, { r: +p.r || BY_ID[p.id].r, bridge: norm(+p.bridge || 0), angles: Array.isArray(p.angles) ? p.angles.map(Number) : [] });
