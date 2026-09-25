@@ -12,6 +12,7 @@
 
 import { BY_ID, sampleSegment } from './catalog.js';
 import { Layout, norm } from './layout.js';
+import { segment, idealPath, pathToPieces, chain, decomposeStraight, TURNOUT_LEN } from './normalize.js';
 
 const STEP = 5;                 // próbkowanie kreski [mm]
 const MIN_STROKE = 60;          // krótsze kreski ignorujemy [mm]
@@ -35,6 +36,7 @@ const r2d = (r) => (r * 180) / Math.PI;
 
 /** Wygładza i próbkuje kreskę. Zwraca { pts, tan, len } lub null gdy za krótka. */
 export function prepareStroke(raw, step = STEP) {
+  if (!(step > 0)) step = STEP;
   let pts = raw.filter((p, i) => i === 0 || Math.hypot(p[0] - raw[i - 1][0], p[1] - raw[i - 1][1]) > 0.5);
   if (pts.length < 2) return null;
   pts = resample(pts, step);
@@ -71,7 +73,8 @@ function resample(pts, step) {
 }
 
 function smooth(pts, w) {
-  return pts.map((_, i) => {
+  return pts.map((p, i) => {
+    if (i === 0 || i === pts.length - 1) return p;
     let sx = 0, sy = 0, n = 0;
     for (let k = -w; k <= w; k++) { const p = pts[i + k]; if (p) { sx += p[0]; sy += p[1]; n++; } }
     return [sx / n, sy / n];
@@ -132,7 +135,7 @@ function evaluate(stroke, pose, id, entry, sIdx) {
  * @param {Layout} layout istniejący układ (do doczepiania)
  * @returns {{ pieces: object[], strokesUsed: number }}
  */
-export function fitStrokes(rawStrokes, layout) {
+export function fitGreedy(rawStrokes, layout) {
   const strokes = rawStrokes.map((r) => prepareStroke(r)).filter(Boolean).map((s) => ({ ...s, done: false, start: null }));
   strokes.sort((a, b) => b.len - a.len);
   const pieces = [];
@@ -247,10 +250,12 @@ function matchBranch(s, port) {
   let best = null;
   for (let i = 0; i < win; i++) {
     const d = Math.hypot(s.pts[i][0] - port.x, s.pts[i][1] - port.y);
-    if (d < BRANCH_DIST && Math.abs(norm(s.tan[i] - port.a)) < BRANCH_ANG && (!best || d < best.d)) best = { d, stroke: s, reverse: false, pose: { x: port.x, y: port.y, a: port.a } };
+    const da = Math.abs(norm(s.tan[i] - port.a));
+    if (d < BRANCH_DIST && da < BRANCH_ANG && (!best || d < best.d)) best = { d, da, stroke: s, reverse: false, pose: { x: port.x, y: port.y, a: port.a } };
     const j = n - 1 - i;
     const dj = Math.hypot(s.pts[j][0] - port.x, s.pts[j][1] - port.y);
-    if (dj < BRANCH_DIST && Math.abs(norm(s.tan[j] + 180 - port.a)) < BRANCH_ANG && (!best || dj < best.d)) best = { d: dj, stroke: s, reverse: true, pose: { x: port.x, y: port.y, a: port.a } };
+    const daj = Math.abs(norm(s.tan[j] + 180 - port.a));
+    if (dj < BRANCH_DIST && daj < BRANCH_ANG && (!best || dj < best.d)) best = { d: dj, da: daj, stroke: s, reverse: true, pose: { x: port.x, y: port.y, a: port.a } };
   }
   return best;
 }
@@ -268,4 +273,173 @@ export function deviation(pieces, raw) {
     sum += best; n++;
   }
   return sum / n;
+}
+
+
+// ============================================================================
+// Wariant znormalizowany: kreska → prymitywy → ścieżka idealna → elementy.
+// ============================================================================
+
+const BRANCH_SCAN = 10;   // krok skanowania położenia ostrza rozjazdu wzdłuż prostej [mm]
+
+function subStroke(stroke, from) {
+  return { pts: stroke.pts.slice(from), tan: stroke.tan.slice(from), len: (stroke.pts.length - 1 - from) * STEP };
+}
+
+/** Kreski-odgałęzienia: początek (lub koniec) B leży na wnętrzu A. */
+function findParents(strokes) {
+  for (const b of strokes) {
+    b.parent = null;
+    for (const a of strokes) {
+      if (a === b) continue;
+      const margin = 12; // pomiń 60 mm przy końcach A
+      for (const [pt] of [[b.pts[0]], [b.pts[b.pts.length - 1]]]) {
+        for (let i = margin; i < a.pts.length - margin; i++) {
+          if (Math.hypot(a.pts[i][0] - pt[0], a.pts[i][1] - pt[1]) < BRANCH_DIST) { b.parent = a; break; }
+        }
+        if (b.parent) break;
+      }
+      if (b.parent) break;
+    }
+  }
+  // kolejność: rodzice przed dziećmi, dłuższe najpierw
+  const ordered = [];
+  const visit = (s) => { if (ordered.includes(s)) return; if (s.parent && !ordered.includes(s.parent)) visit(s.parent); ordered.push(s); };
+  for (const s of [...strokes].sort((a, b) => b.len - a.len)) visit(s);
+  return ordered;
+}
+
+/**
+ * Prosta o długości L od pozy: jeśli któraś nienaruszona kreska odgałęzia się
+ * z niej, wstaw rozjazd (skanując położenie ostrza) i ustaw start tej kreski.
+ * Zwraca listę { id, entry }.
+ */
+function straightWithTurnouts(L, pose, strokes, freeStart = false, freeEnd = false) {
+  const list = [];
+  let restL = L, cur = { ...pose };
+  for (let guard = 0; guard < 6; guard++) {
+    const near = strokes.filter((s) => !s.done && !s.start && (dist(s.pts[0], cur) < L + 400 || dist(s.pts[s.pts.length - 1], cur) < L + 400));
+    let best = null;
+    if (near.length && restL >= TURNOUT_LEN) {
+      for (let t = 0; t <= restL - TURNOUT_LEN + 1e-6; t += BRANCH_SCAN) {
+        const toe = { x: cur.x + t * Math.cos(d2r(cur.a)), y: cur.y + t * Math.sin(d2r(cur.a)), a: cur.a };
+        for (const [id, entry] of TURNOUTS) {
+          const piece = place(id, entry, toe);
+          const port = Layout.worldPort(piece, 2);
+          for (const s of near) {
+            const m = matchBranch(s, port);
+            if (!m) continue;
+            const ids = decomposeStraight(t);
+            const err = Math.abs(ids.reduce((a, i) => a + BY_ID[i].len, 0) - t);
+            const cost = m.d + 1.5 * m.da + 4 * ids.length + 2 * err;
+            if (!best || cost < best.cost) best = { cost, d: m.d, t, id, entry, match: m };
+          }
+        }
+      }
+    }
+    if (!best) break;
+    if (freeStart && guard === 0) {
+      // początek kreski nie jest przypięty: przesuń go tak, by przed ostrzem były tylko całe G239
+      const n = Math.round(best.t / G239);
+      const shift = best.t - n * G239;
+      pose = { x: pose.x + shift * Math.cos(d2r(pose.a)), y: pose.y + shift * Math.sin(d2r(pose.a)), a: pose.a };
+      L -= shift; restL = L; best.t = n * G239;
+    }
+    // prosta przed ostrzem, rozjazd, dalej reszta
+    for (const id of decomposeStraight(best.t)) list.push({ id, entry: 0 });
+    list.push({ id: best.id, entry: best.entry });
+    // rzeczywista długość dodanych prostych różni się od t – pozę i port odgałęzienia bierz z łańcucha
+    const c = chain(list, pose);
+    cur = c.end; restL = L - projLen(pose, cur);
+    const turnout = c.pieces[c.pieces.length - 1];
+    const port = Layout.worldPort(turnout, 2);
+    const b = best.match;
+    b.stroke.start = { pose: { x: port.x, y: port.y, a: port.a } };
+    if (b.reverse) reverseStroke(b.stroke);
+    if (restL < 20) return list;
+  }
+  // wolny koniec kreski: mniej elementów ważniejsze niż dokładna długość
+  for (const id of decomposeStraight(restL, freeEnd ? 25 : 4)) list.push({ id, entry: 0 });
+  return { list, pose };
+}
+
+const G239 = BY_ID['55200'].len;
+
+const projLen = (from, to) => (to.x - from.x) * Math.cos(d2r(from.a)) + (to.y - from.y) * Math.sin(d2r(from.a));
+
+export function fitNormalized(rawStrokes, layout) {
+  const strokes = rawStrokes.map((r) => prepareStroke(r)).filter(Boolean).map((s) => ({ ...s, done: false, start: null }));
+  const ordered = findParents(strokes);
+  const pieces = [];
+  let openPorts = layout ? layout.openPorts().map((p) => ({ x: p.x, y: p.y, a: p.a })) : [];
+
+  for (const stroke of ordered) {
+    if (stroke.done) continue;
+    stroke.done = true;
+    let pose, from = 0, snapStart = true;
+    if (stroke.start) {
+      pose = stroke.start.pose; snapStart = false;
+      from = nearest(stroke, pose.x, pose.y, 0, 0, 60).idx;
+    } else {
+      const att = findAttach(stroke, openPorts);
+      if (att) {
+        if (att.reverse) reverseStroke(stroke);
+        pose = { x: att.port.x, y: att.port.y, a: att.port.a }; snapStart = false;
+        from = nearest(stroke, pose.x, pose.y, 0, 0, 60).idx;
+        openPorts = openPorts.filter((p) => Math.hypot(p.x - pose.x, p.y - pose.y) > 1);
+      } else {
+        pose = { x: stroke.pts[0][0], y: stroke.pts[0][1], a: stroke.tan[0] };
+      }
+    }
+    const sub = from > 0 ? subStroke(stroke, from) : stroke;
+    if (sub.pts.length < 4) continue;
+    const prims = segment(sub);
+    const { path, start } = idealPath(sub, prims, pose, snapStart);
+    pose = start;
+    // elementy: proste z rozjazdami, łuki wprost
+    const list = [];
+    let cur = { ...pose };
+    for (const [pi, p] of path.entries()) {
+      let part;
+      if (p.type === 'straight') {
+        const r = straightWithTurnouts(p.L, cur, strokes, snapStart && list.length === 0, pi === path.length - 1);
+        part = r.list; if (list.length === 0) pose = r.pose; cur = r.pose;
+      } else part = pathToPieces([p]);
+      const c = chain(part, cur);
+      list.push(...part); cur = c.end;
+    }
+    const built = chain(list, pose).pieces;
+    pieces.push(...built);
+    for (const piece of built) for (let i = 0; i < BY_ID[piece.id].geo.ports.length; i++) openPorts.push(Layout.worldPort(piece, i));
+  }
+  return { pieces, strokesUsed: strokes.length };
+}
+
+/**
+ * Główne wejście. Normalizacja daje "czystą" geometrię (promienie i kąty z
+ * katalogu), więc jej odchylenie od kreski jest z założenia większe – to cena
+ * snapu, nie błąd. Zachłanne dopasowanie bierzemy tylko wtedy, gdy
+ * normalizacja wyraźnie odstaje od tego, co narysowano.
+ */
+export function fitStrokes(rawStrokes, layout) {
+  const a = fitNormalized(rawStrokes, layout);
+  const da = meanDeviation(a.pieces, rawStrokes);
+  if (a.pieces.length && da.mean < 40 && da.max < 110) return { ...a, method: 'normalized', deviation: da };
+  const b = fitGreedy(rawStrokes, layout);
+  const db = meanDeviation(b.pieces, rawStrokes);
+  const sa = da.mean + 3 * a.pieces.length, sb = db.mean + 3 * b.pieces.length;
+  return sa <= sb && a.pieces.length ? { ...a, method: 'normalized', deviation: da } : { ...b, method: 'greedy', deviation: db };
+}
+
+function meanDeviation(pieces, rawStrokes) {
+  if (!pieces.length) return { mean: Infinity, max: Infinity };
+  const strokes = rawStrokes.map((r) => prepareStroke(r)).filter(Boolean);
+  let sum = 0, n = 0, max = 0;
+  for (const piece of pieces) for (const seg of BY_ID[piece.id].geo.segments) for (const [lx, ly] of sampleSegment(seg, 15)) {
+    const w = Layout.localToWorld(piece, lx, ly);
+    let best = Infinity;
+    for (const s of strokes) for (const p of s.pts) { const d = Math.hypot(p[0] - w.x, p[1] - w.y); if (d < best) best = d; }
+    sum += best; n++; max = Math.max(max, best);
+  }
+  return { mean: sum / n, max };
 }

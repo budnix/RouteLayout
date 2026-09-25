@@ -46,6 +46,15 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   check(dev < 25, `fitter: średnie odchylenie od kreski ${dev.toFixed(1)} mm < 25`);
   const lay = new Layout(); lay.addMany(fit.pieces);
   check(lay.openPorts().length === 3, 'fitter: elementy połączone (3 otwarte końce: start, koniec, odgałęzienie)');
+  // ta sama kreska z szumem ±7 mm (drżąca ręka): normalizacja ma dać tę samą geometrię
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5;
+  const noisy = (pts) => pts.map(([x, y]) => [x + rnd() * 14, y + rnd() * 14]);
+  const fitN = fitStrokes([noisy(s1), noisy(s2)], new Layout());
+  const idsN = fitN.pieces.map((p) => p.id);
+  check(fitN.method === 'normalized' && idsN.filter((i) => i === '55212').length === 3 && (idsN.includes('55220') || idsN.includes('55221')),
+    'fitter: z szumem ±7 mm nadal 3 × R2 + rozjazd, metoda ' + fitN.method + ' (' + idsN.join(',') + ')');
+  const layN = new Layout(); layN.addMany(fitN.pieces);
+  check(layN.openPorts().length === 3, 'fitter: z szumem elementy nadal połączone');
   const { srv, url } = await serve();
   const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
   const errors = [];

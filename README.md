@@ -78,7 +78,8 @@ Other track systems (Roco, Tillig, Märklin C, Peco…) can be added by extendin
 - `js/catalog.js` — catalog data and geometry generator (segments: line/arc, ports with heading)
 - `js/layout.js` — layout model: transforms, connection detection, snapping, undo/redo, JSON, BOM
 - `js/editor2d.js` — Canvas 2D editor using Pointer Events (edit and sketch modes)
-- `js/fitter.js` — converts freehand strokes into PIKO pieces (greedy fit with one-step lookahead, turnout detection, attachment to open ends)
+- `js/normalize.js` — stroke normalisation: curvature-based segmentation into straights and arcs, circle/line fitting, snapping of radii (R1–R4, R9), arc angles and headings to the PIKO grid, DP decomposition of straights into the fewest pieces
+- `js/fitter.js` — turns normalised strokes into connected pieces (turnout placement where a stroke branches off, attachment to open ends); a greedy piece-by-piece fitter is kept as a fallback for sketches the normaliser cannot follow
 - `js/view3d.js` — three.js preview (rails, sleepers, ballast, baseboard), on-demand rendering
 - `js/i18n.js` — UI and catalog translations (EN / DE / PL)
 - `js/main.js` — UI wiring
