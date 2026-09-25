@@ -105,6 +105,29 @@ const DRAW2D = {
 
 // ---- 3D -------------------------------------------------------------------------
 
+/**
+ * Eliptyczny "garb" o profilu z(r) = H·(1−r²)^p (p=2: zerowe nachylenie przy
+ * krawędzi – łagodne wzgórze; p=1: paraboloida – niecka stawu przy H < 0).
+ */
+export function bumpGeometry(rx, rz, H, rings = 16, segs = 40, p = 2) {
+  const pos = [], idx = [];
+  pos.push(0, H, 0);
+  for (let i = 1; i <= rings; i++) {
+    const r = i / rings, y = H * Math.pow(1 - r * r, p);
+    for (let j = 0; j < segs; j++) { const a = (j / segs) * Math.PI * 2; pos.push(rx * r * Math.cos(a), y, rz * r * Math.sin(a)); }
+  }
+  for (let j = 0; j < segs; j++) idx.push(0, 1 + ((j + 1) % segs), 1 + j);
+  for (let i = 1; i < rings; i++) {
+    const a0 = 1 + (i - 1) * segs, b0 = 1 + i * segs;
+    for (let j = 0; j < segs; j++) { const j1 = (j + 1) % segs; idx.push(a0 + j, b0 + j1, b0 + j, a0 + j, a0 + j1, b0 + j1); }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+
 const mats = {};
 const mat = (color, extra = {}) => (mats[color + JSON.stringify(extra)] ||= new THREE.MeshStandardMaterial({ color, roughness: 0.9, ...extra }));
 
@@ -155,6 +178,15 @@ const BUILD3D = {
   turntable: (g, w) => { const r = w / 2; const pit = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 4, 40), mat(C.pit)); pit.position.y = -2; g.add(pit); const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 2, 8, 40), mat(C.stone)); ring.rotation.x = Math.PI / 2; ring.position.y = 1; g.add(ring); const bridge = new THREE.Mesh(new THREE.BoxGeometry(2 * r - 6, 6, 28), mat(C.bridge)); bridge.position.y = 3; g.add(bridge); for (const z of [-8.25, 8.25]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(2 * r - 6, 2.5, 1.2), mat(C.steel, { metalness: 0.8, roughness: 0.35 })); rail.position.set(0, 7.2, z); g.add(rail); } },
   portal: (g, w, h) => { const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 60, h), mat(C.stone)); wall.position.y = 30; g.add(wall); const hole = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.3, w * 0.3, h + 2, 16, 1, false, 0, Math.PI), mat(0x111111)); hole.rotation.x = Math.PI / 2; hole.rotation.z = Math.PI / 2; hole.position.y = 22; g.add(hole); },
   watertower: (g, w) => { const r = w / 2; const legs = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.35, r * 0.5, 80, 8), mat(C.brick)); legs.position.y = 40; g.add(legs); const tank = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 40, 16), mat(C.roof2)); tank.position.y = 100; g.add(tank); const cap = new THREE.Mesh(new THREE.ConeGeometry(r + 2, 16, 16), mat(C.roof)); cap.position.y = 128; g.add(cap); },
-  pond: (g, w, h) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 32), mat(C.water, { metalness: 0.2, roughness: 0.25 })); m.scale.set(w / 2, 1.5, h / 2); m.position.y = 0.75; g.add(m); },
-  hill: (g, w, h) => { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat(C.hill)); m.scale.set(w / 2, Math.min(w, h) * 0.35, h / 2); g.add(m); },
+  pond: (g, w, h) => {
+    // wydrążona niecka poniżej blatu (blat ma w tym miejscu otwór – patrz view3d) + przezroczysta tafla
+    const depth = Math.min(28, Math.min(w, h) * 0.12);
+    const bowl = new THREE.Mesh(bumpGeometry(w / 2, h / 2, -depth, 12, 40, 1), mat(0x8a7f62, { side: THREE.DoubleSide }));
+    g.add(bowl);
+    const water = new THREE.Mesh(new THREE.CircleGeometry(1, 48), mat(C.water, { transparent: true, opacity: 0.55, metalness: 0.1, roughness: 0.15, depthWrite: false, side: THREE.DoubleSide }));
+    water.rotation.x = -Math.PI / 2; water.scale.set(w / 2 - 1, h / 2 - 1, 1); water.position.y = -2.5;
+    water.renderOrder = 2; water.castShadow = false;
+    g.add(water);
+  },
+  hill: (g, w, h) => { const m = new THREE.Mesh(bumpGeometry(w / 2, h / 2, Math.min(w, h) * 0.22, 20, 48, 2), mat(C.hill)); g.add(m); },
 };

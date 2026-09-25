@@ -118,11 +118,27 @@ export class View3D {
     // blat
     const { w, h } = this.layout.board;
     if (this.boardMesh) { this.scene.remove(this.boardMesh); this.boardMesh.children.forEach((m) => m.geometry.dispose()); }
+    this.mats.board.side = THREE.DoubleSide;
     const board = new THREE.Group();
-    const top = new THREE.Mesh(new THREE.BoxGeometry(w, 12, h), this.mats.board);
-    top.position.set(w / 2, -6, h / 2);
+    // górna płyta jako kształt z otworami pod stawami (widać wydrążone niecki)
+    const shape = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(w, 0), new THREE.Vector2(w, h), new THREE.Vector2(0, h)]);
+    for (const it of this.layout.scenery) {
+      if (it.type !== 'pond') continue;
+      const hole = new THREE.Path();
+      hole.absellipse(it.x, it.y, it.w / 2 - 0.5, it.h / 2 - 0.5, 0, Math.PI * 2, false, it.rot * Math.PI / 180);
+      shape.holes.push(hole);
+    }
+    const topGeo = new THREE.ShapeGeometry(shape, 24);
+    topGeo.rotateX(Math.PI / 2);            // płaszczyzna XY -> XZ (y kształtu = z sceny)
+    const top = new THREE.Mesh(topGeo, this.mats.board);
     top.receiveShadow = true;
     board.add(top);
+    // korpus blatu poniżej płyty bez wierzchu (żeby niecki stawów były widoczne): 4 ściany + spód
+    const T = 12;
+    for (const [bx, by, bz, sx, sz] of [[w / 2, -T / 2, 1, w, 2], [w / 2, -T / 2, h - 1, w, 2], [1, -T / 2, h / 2, 2, h], [w - 1, -T / 2, h / 2, 2, h]]) {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(sx, T, sz), this.mats.board); wall.position.set(bx, by, bz); board.add(wall);
+    }
+    const bottom = new THREE.Mesh(new THREE.BoxGeometry(w, 1, h), this.mats.board); bottom.position.set(w / 2, -T + 0.5, h / 2); board.add(bottom);
     const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 24, 30, h + 24), this.mats.edge);
     frame.position.set(w / 2, -27, h / 2);
     board.add(frame);
