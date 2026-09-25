@@ -135,43 +135,43 @@ function doubleSlip(L, deg, r) {
 
 const items = [
   // Proste
-  { id: '55200', code: 'G239', name: 'Prosta 239,07 mm', group: 'straight', geo: straight(G.G239), len: G.G239 },
-  { id: '55201', code: 'G231', name: 'Prosta 230,93 mm', group: 'straight', geo: straight(G.G231), len: G.G231 },
-  { id: '55202', code: 'G119', name: 'Prosta 119,54 mm', group: 'straight', geo: straight(G.G119), len: G.G119 },
-  { id: '55203', code: 'G115', name: 'Prosta 115,46 mm', group: 'straight', geo: straight(G.G115), len: G.G115 },
-  { id: '55204', code: 'G107', name: 'Prosta 107,32 mm (tor równoległy do K30)', group: 'straight', geo: straight(G.G107), len: G.G107 },
-  { id: '55205', code: 'G62', name: 'Prosta 61,88 mm (łącznik między BW R3 i R4)', group: 'straight', geo: straight(G.G62), len: G.G62 },
-  { id: '55206', code: 'G31', name: 'Prosta 30,94 mm', group: 'straight', geo: straight(G.G31), len: G.G31 },
-  { id: '55207', code: 'ÜG', name: 'Przejściówka do starego toru Piko 62 mm', group: 'straight', geo: straight(G.G62), len: G.G62 },
-  { id: '55208', code: 'ÜG', name: 'Przejściówka (profil 2,5 mm) 62 mm', group: 'straight', geo: straight(G.G62), len: G.G62 },
-  { id: '55209', code: 'G940', name: 'Flex 940 mm (prosto)', group: 'flex', geo: straight(940), len: 940, flex: true },
+  { id: '55200', code: 'G239', name: { pl: 'Prosta 239,07 mm', en: 'Straight 239.07 mm', de: 'Gerades Gleis 239,07 mm' }, group: 'straight', geo: straight(G.G239), len: G.G239 },
+  { id: '55201', code: 'G231', name: { pl: 'Prosta 230,93 mm', en: 'Straight 230.93 mm', de: 'Gerades Gleis 230,93 mm' }, group: 'straight', geo: straight(G.G231), len: G.G231 },
+  { id: '55202', code: 'G119', name: { pl: 'Prosta 119,54 mm', en: 'Straight 119.54 mm', de: 'Gerades Gleis 119,54 mm' }, group: 'straight', geo: straight(G.G119), len: G.G119 },
+  { id: '55203', code: 'G115', name: { pl: 'Prosta 115,46 mm', en: 'Straight 115.46 mm', de: 'Gerades Gleis 115,46 mm' }, group: 'straight', geo: straight(G.G115), len: G.G115 },
+  { id: '55204', code: 'G107', name: { pl: 'Prosta 107,32 mm (tor równoległy do K30)', en: 'Straight 107.32 mm (parallel track for K30)', de: 'Gerades Gleis 107,32 mm (Parallelgleis zur K30)' }, group: 'straight', geo: straight(G.G107), len: G.G107 },
+  { id: '55205', code: 'G62', name: { pl: 'Prosta 61,88 mm (łącznik między BW R3 i R4)', en: 'Straight 61.88 mm (filler between curved turnouts R3/R4)', de: 'Gerades Gleis 61,88 mm (Verbindungsstück zwischen Bogenweichen R3/R4)' }, group: 'straight', geo: straight(G.G62), len: G.G62 },
+  { id: '55206', code: 'G31', name: { pl: 'Prosta 30,94 mm', en: 'Straight 30.94 mm', de: 'Gerades Gleis 30,94 mm' }, group: 'straight', geo: straight(G.G31), len: G.G31 },
+  { id: '55207', code: 'ÜG', name: { pl: 'Przejściówka do starego toru Piko 62 mm', en: 'Transition track to old PIKO track, 62 mm', de: 'Übergangsgleis zum alten PIKO-Gleis, 62 mm' }, group: 'straight', geo: straight(G.G62), len: G.G62 },
+  { id: '55208', code: 'ÜG', name: { pl: 'Przejściówka (profil 2,5 mm) 62 mm', en: 'Transition track (2.5 mm profile), 62 mm', de: 'Übergangsgleis (Profil 2,5 mm), 62 mm' }, group: 'straight', geo: straight(G.G62), len: G.G62 },
+  { id: '55209', code: 'G940', name: { pl: 'Flex 940 mm (prosto)', en: 'Flex track 940 mm (straight)', de: 'Flexgleis 940 mm (gerade)' }, group: 'flex', geo: straight(940), len: 940, flex: true },
 
   // Łuki
-  { id: '55211', code: 'R1', name: 'Łuk R1 360 mm / 30°', group: 'curve', geo: curve(R.R1, 30, +1), r: R.R1, deg: 30 },
-  { id: '55212', code: 'R2', name: 'Łuk R2 421,88 mm / 30°', group: 'curve', geo: curve(R.R2, 30, +1), r: R.R2, deg: 30 },
-  { id: '55213', code: 'R3', name: 'Łuk R3 483,75 mm / 30°', group: 'curve', geo: curve(R.R3, 30, +1), r: R.R3, deg: 30 },
-  { id: '55214', code: 'R4', name: 'Łuk R4 545,63 mm / 30°', group: 'curve', geo: curve(R.R4, 30, +1), r: R.R4, deg: 30 },
-  { id: '55215', code: 'R1 7,5', name: 'Łuk R1 360 mm / 7,5°', group: 'curve', geo: curve(R.R1, 7.5, +1), r: R.R1, deg: 7.5, verified: false },
-  { id: '55218', code: 'R2 7,5', name: 'Łuk R2 421,88 mm / 7,5°', group: 'curve', geo: curve(R.R2, 7.5, +1), r: R.R2, deg: 7.5 },
-  { id: '55219', code: 'R9', name: 'Łuk R9 907,97 mm / 15° (przeciwłuk rozjazdu)', group: 'curve', geo: curve(R.R9, 15, +1), r: R.R9, deg: 15 },
+  { id: '55211', code: 'R1', name: { pl: 'Łuk R1 360 mm / 30°', en: 'Curve R1 360 mm / 30°', de: 'Bogen R1 360 mm / 30°' }, group: 'curve', geo: curve(R.R1, 30, +1), r: R.R1, deg: 30 },
+  { id: '55212', code: 'R2', name: { pl: 'Łuk R2 421,88 mm / 30°', en: 'Curve R2 421.88 mm / 30°', de: 'Bogen R2 421,88 mm / 30°' }, group: 'curve', geo: curve(R.R2, 30, +1), r: R.R2, deg: 30 },
+  { id: '55213', code: 'R3', name: { pl: 'Łuk R3 483,75 mm / 30°', en: 'Curve R3 483.75 mm / 30°', de: 'Bogen R3 483,75 mm / 30°' }, group: 'curve', geo: curve(R.R3, 30, +1), r: R.R3, deg: 30 },
+  { id: '55214', code: 'R4', name: { pl: 'Łuk R4 545,63 mm / 30°', en: 'Curve R4 545.63 mm / 30°', de: 'Bogen R4 545,63 mm / 30°' }, group: 'curve', geo: curve(R.R4, 30, +1), r: R.R4, deg: 30 },
+  { id: '55215', code: 'R1 7,5', name: { pl: 'Łuk R1 360 mm / 7,5°', en: 'Curve R1 360 mm / 7.5°', de: 'Bogen R1 360 mm / 7,5°' }, group: 'curve', geo: curve(R.R1, 7.5, +1), r: R.R1, deg: 7.5, verified: false },
+  { id: '55218', code: 'R2 7,5', name: { pl: 'Łuk R2 421,88 mm / 7,5°', en: 'Curve R2 421.88 mm / 7.5°', de: 'Bogen R2 421,88 mm / 7,5°' }, group: 'curve', geo: curve(R.R2, 7.5, +1), r: R.R2, deg: 7.5 },
+  { id: '55219', code: 'R9', name: { pl: 'Łuk R9 907,97 mm / 15° (przeciwłuk rozjazdu)', en: 'Curve R9 907.97 mm / 15° (turnout counter-curve)', de: 'Weichengegenbogen R9 907,97 mm / 15°' }, group: 'curve', geo: curve(R.R9, 15, +1), r: R.R9, deg: 15 },
 
   // Rozjazdy
-  { id: '55220', code: 'WL', name: 'Rozjazd lewy 15°, R9, 239 mm', group: 'turnout', geo: turnout(G.G239, R.R9, 15, +1) },
-  { id: '55221', code: 'WR', name: 'Rozjazd prawy 15°, R9, 239 mm', group: 'turnout', geo: turnout(G.G239, R.R9, 15, -1) },
-  { id: '55222', code: 'BWL', name: 'Rozjazd łukowy lewy R2/R3, 30°', group: 'turnout', geo: curvedTurnout(R.R3, R.R2, 30, +1) },
-  { id: '55223', code: 'BWR', name: 'Rozjazd łukowy prawy R2/R3, 30°', group: 'turnout', geo: curvedTurnout(R.R3, R.R2, 30, -1) },
-  { id: '55227', code: 'BWL-R3', name: 'Rozjazd łukowy lewy R3/R4, 30°', group: 'turnout', geo: curvedTurnout(R.R4, R.R3, 30, +1) },
-  { id: '55228', code: 'BWR-R3', name: 'Rozjazd łukowy prawy R3/R4, 30°', group: 'turnout', geo: curvedTurnout(R.R4, R.R3, 30, -1) },
-  { id: '55225', code: 'W3', name: 'Rozjazd trójdrogowy 2×15°, R9, 239 mm', group: 'turnout', geo: threeWay(G.G239, R.R9, 15) },
-  { id: '55226', code: 'WY', name: 'Rozjazd Y 2×15°, R9', group: 'turnout', geo: wye(R.R9, 15) },
-  { id: '55224', code: 'DKW', name: 'Rozjazd krzyżowy podwójny 15°, 239 mm', group: 'crossing', geo: doubleSlip(G.G239, 15, R.R9) },
+  { id: '55220', code: 'WL', name: { pl: 'Rozjazd lewy 15°, R9, 239 mm', en: 'Left turnout 15°, R9, 239 mm', de: 'Weiche links 15°, R9, 239 mm' }, group: 'turnout', geo: turnout(G.G239, R.R9, 15, +1) },
+  { id: '55221', code: 'WR', name: { pl: 'Rozjazd prawy 15°, R9, 239 mm', en: 'Right turnout 15°, R9, 239 mm', de: 'Weiche rechts 15°, R9, 239 mm' }, group: 'turnout', geo: turnout(G.G239, R.R9, 15, -1) },
+  { id: '55222', code: 'BWL', name: { pl: 'Rozjazd łukowy lewy R2/R3, 30°', en: 'Left curved turnout R2/R3, 30°', de: 'Bogenweiche links R2/R3, 30°' }, group: 'turnout', geo: curvedTurnout(R.R3, R.R2, 30, +1) },
+  { id: '55223', code: 'BWR', name: { pl: 'Rozjazd łukowy prawy R2/R3, 30°', en: 'Right curved turnout R2/R3, 30°', de: 'Bogenweiche rechts R2/R3, 30°' }, group: 'turnout', geo: curvedTurnout(R.R3, R.R2, 30, -1) },
+  { id: '55227', code: 'BWL-R3', name: { pl: 'Rozjazd łukowy lewy R3/R4, 30°', en: 'Left curved turnout R3/R4, 30°', de: 'Bogenweiche links R3/R4, 30°' }, group: 'turnout', geo: curvedTurnout(R.R4, R.R3, 30, +1) },
+  { id: '55228', code: 'BWR-R3', name: { pl: 'Rozjazd łukowy prawy R3/R4, 30°', en: 'Right curved turnout R3/R4, 30°', de: 'Bogenweiche rechts R3/R4, 30°' }, group: 'turnout', geo: curvedTurnout(R.R4, R.R3, 30, -1) },
+  { id: '55225', code: 'W3', name: { pl: 'Rozjazd trójdrogowy 2×15°, R9, 239 mm', en: 'Three-way turnout 2×15°, R9, 239 mm', de: 'Dreiwegweiche 2×15°, R9, 239 mm' }, group: 'turnout', geo: threeWay(G.G239, R.R9, 15) },
+  { id: '55226', code: 'WY', name: { pl: 'Rozjazd Y 2×15°, R9', en: 'Y turnout 2×15°, R9', de: 'Y-Weiche 2×15°, R9' }, group: 'turnout', geo: wye(R.R9, 15) },
+  { id: '55224', code: 'DKW', name: { pl: 'Rozjazd krzyżowy podwójny 15°, 239 mm', en: 'Double slip 15°, 239 mm', de: 'Doppelkreuzungsweiche 15°, 239 mm' }, group: 'crossing', geo: doubleSlip(G.G239, 15, R.R9) },
 
   // Krzyżownice
-  { id: '55240', code: 'K15', name: 'Krzyżownica 15°, 239 mm', group: 'crossing', geo: crossing(G.G239, 15) },
-  { id: '55241', code: 'K30', name: 'Krzyżownica 30°, 119,54 mm', group: 'crossing', geo: crossing(G.G119, 30) },
+  { id: '55240', code: 'K15', name: { pl: 'Krzyżownica 15°, 239 mm', en: 'Crossing 15°, 239 mm', de: 'Kreuzung 15°, 239 mm' }, group: 'crossing', geo: crossing(G.G239, 15) },
+  { id: '55241', code: 'K30', name: { pl: 'Krzyżownica 30°, 119,54 mm', en: 'Crossing 30°, 119.54 mm', de: 'Kreuzung 30°, 119,54 mm' }, group: 'crossing', geo: crossing(G.G119, 30) },
 
   // Akcesoria z geometrią
-  { id: '55280', code: 'PB', name: 'Kozioł oporowy (nasadzany na prostą)', group: 'accessory', geo: straight(G.G62), len: G.G62, bumper: true },
+  { id: '55280', code: 'PB', name: { pl: 'Kozioł oporowy (nasadzany na prostą)', en: 'Buffer stop (clips onto a straight)', de: 'Prellbock (auf gerades Gleis aufsteckbar)' }, group: 'accessory', geo: straight(G.G62), len: G.G62, bumper: true },
 ];
 
 // Odbicia lustrzane łuków (skręt w prawo) nie są osobnymi artykułami: fizyczny
@@ -180,14 +180,8 @@ const items = [
 export const CATALOG = items;
 export const BY_ID = Object.fromEntries(items.map((p) => [p.id, p]));
 
-export const GROUPS = [
-  { key: 'straight', label: 'Proste' },
-  { key: 'curve', label: 'Łuki' },
-  { key: 'turnout', label: 'Rozjazdy' },
-  { key: 'crossing', label: 'Krzyżownice / DKW' },
-  { key: 'flex', label: 'Flex' },
-  { key: 'accessory', label: 'Akcesoria' },
-];
+// Etykiety grup: klucze i18n 'group.<key>'.
+export const GROUPS = ['straight', 'curve', 'turnout', 'crossing', 'flex', 'accessory'];
 
 /** Najczęściej używane — szybkie przyciski w palecie. */
 export const QUICK = ['55200', '55201', '55202', '55212', '55213', '55220', '55221', '55219'];

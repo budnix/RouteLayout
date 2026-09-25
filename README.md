@@ -13,6 +13,7 @@ A web app (HTML5, ES modules, Canvas 2D + three.js) for designing H0 model railw
 - Drag pieces with a finger or mouse; nearby track ends snap together
 - **3D preview** with rails (16.5 mm gauge), sleepers, ballast, baseboard and shadows — rendered on demand to save battery
 - Undo/redo, autosave, JSON import/export, PNG export, bill of materials with article numbers
+- Interface in **English, German and Polish** (auto-detected, switchable in the menu)
 - Configurable baseboard size, dark mode, PWA manifest
 
 ## Running locally
@@ -76,6 +77,7 @@ Other track systems (Roco, Tillig, Märklin C, Peco…) can be added by extendin
 - `js/layout.js` — layout model: transforms, connection detection, snapping, undo/redo, JSON, BOM
 - `js/editor2d.js` — Canvas 2D editor using Pointer Events
 - `js/view3d.js` — three.js preview (rails, sleepers, ballast, baseboard), on-demand rendering
+- `js/i18n.js` — UI and catalog translations (EN / DE / PL)
 - `js/main.js` — UI wiring
 - `vendor/` — three.js (MIT) copied from npm, no CDN
 

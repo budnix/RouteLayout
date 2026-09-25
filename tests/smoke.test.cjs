@@ -95,6 +95,16 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   const afterUndo = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces.length);
   check(afterUndo === 2, 'undo: przywraca stan sprzed importu (2 elementy)');
 
+  // i18n: przełączenie na DE zmienia teksty UI i nazwy w katalogu
+  const de = await page.evaluate(() => {
+    const sel = document.getElementById('sel-lang'); sel.value = 'de'; sel.dispatchEvent(new Event('change'));
+    return { add: document.getElementById('btn-add').textContent, group: document.getElementById('sel-group').selectedOptions[0].text,
+      piece: document.getElementById('sel-piece').selectedOptions[0].text, lang: document.documentElement.lang };
+  });
+  check(de.lang === 'de' && de.add.includes('Einfügen') && de.group === 'Gerade Gleise' && de.piece.includes('Gerades Gleis'), 'i18n: przełączenie na DE tłumaczy UI i katalog');
+  const pl = await page.evaluate(() => { const sel = document.getElementById('sel-lang'); sel.value = 'pl'; sel.dispatchEvent(new Event('change')); return document.getElementById('btn-add').textContent; });
+  check(pl.includes('Wstaw'), 'i18n: powrót do PL');
+
   // ---- telefon ----
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   hook(phone, 'phone');

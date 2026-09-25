@@ -2,6 +2,7 @@ import { CATALOG, GROUPS, QUICK, BY_ID } from './catalog.js';
 import { Layout } from './layout.js';
 import { Editor2D } from './editor2d.js';
 import { View3D } from './view3d.js';
+import { t, pieceName, applyDom, setLang, getLang, LANGS } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -11,22 +12,28 @@ const view3d = new View3D($('view3d'), layout);
 
 // ---- paleta ----------------------------------------------------------------
 const selGroup = $('sel-group'), selPiece = $('sel-piece'), selEntry = $('sel-entry');
-for (const g of GROUPS) selGroup.append(new Option(g.label, g.key));
-selGroup.value = 'straight';
+function fillGroups() {
+  const cur = selGroup.value || 'straight';
+  selGroup.innerHTML = '';
+  for (const g of GROUPS) selGroup.append(new Option(t('group.' + g), g));
+  selGroup.value = cur;
+}
+fillGroups();
 
 function fillPieces() {
   selPiece.innerHTML = '';
   for (const p of CATALOG.filter((p) => p.group === selGroup.value)) {
-    selPiece.append(new Option(`${p.id} · ${p.code} — ${p.name}${p.verified === false ? ' (nr do potwierdzenia)' : ''}`, p.id));
+    selPiece.append(new Option(`${p.id} · ${p.code} — ${pieceName(p)}${p.verified === false ? ' ' + t('pal.unverified') : ''}`, p.id));
   }
   fillEntry();
 }
-const PORT_LABEL = { turnout: ['początek (ostrze)', 'prosto', 'odgałęzienie', 'odgałęzienie 2'], crossing: ['A1', 'A2', 'B1', 'B2'] };
+const PORT_LABEL = { turnout: ['port.toe', 'port.straight', 'port.branch', 'port.branch2'], crossing: ['A1', 'A2', 'B1', 'B2'] };
 function fillEntry() {
   const def = BY_ID[selPiece.value];
   selEntry.innerHTML = '';
   def.geo.ports.forEach((_, i) => {
-    const lbl = (PORT_LABEL[def.group] || ['początek', 'koniec'])[i] || `port ${i}`;
+    const key = (PORT_LABEL[def.group] || ['port.start', 'port.end'])[i];
+    const lbl = key ? (key.startsWith('port.') ? t(key) : key) : t('port.n', { i });
     selEntry.append(new Option(`${i}: ${lbl}`, String(i)));
   });
 }
@@ -41,13 +48,13 @@ for (const id of QUICK) {
   const p = BY_ID[id];
   const b = document.createElement('button');
   b.innerHTML = `${p.code}<b>${p.id}</b>`;
-  b.title = p.name;
+  b.title = pieceName(p);
   b.addEventListener('click', () => editor.addPiece(id, 0));
   quick.append(b);
 }
 // łuk w drugą stronę: ten sam artykuł, wejście portem 1
 const bR = document.createElement('button');
-bR.innerHTML = 'R2 ↷<b>w prawo</b>'; bR.title = 'Łuk R2 skręcający w prawo (wejście portem 1)';
+bR.innerHTML = `R2 ↷<b>${t('pal.right')}</b>`; bR.title = t('pal.rightTitle');
 bR.addEventListener('click', () => editor.addPiece('55212', 1));
 quick.append(bR);
 
@@ -106,14 +113,14 @@ function refreshMenu() {
   const bom = $('bom');
   bom.innerHTML = '';
   for (const { id, n, def } of layout.bom()) {
-    bom.insertAdjacentHTML('beforeend', `<span class="n">${n} ×</span><span class="id">${id}</span><span>${def.code} — ${def.name}</span>`);
+    bom.insertAdjacentHTML('beforeend', `<span class="n">${n} ×</span><span class="id">${id}</span><span>${def.code} — ${pieceName(def)}</span>`);
   }
   const total = layout.totalLength();
-  bom.insertAdjacentHTML('beforeend', `<div class="total">${layout.pieces.length} elementów, łącznie ${(total / 1000).toFixed(2)} m toru</div>`);
+  bom.insertAdjacentHTML('beforeend', `<div class="total">${t('bom.total', { n: layout.pieces.length, m: (total / 1000).toFixed(2) })}</div>`);
 }
 $('in-name').addEventListener('change', (e) => { layout.name = e.target.value; layout.save(); });
 $('btn-board').addEventListener('click', () => layout.setBoard(Math.max(200, +$('in-w').value || 2000), Math.max(200, +$('in-h').value || 1000)));
-$('btn-clear').addEventListener('click', () => { if (confirm('Usunąć wszystkie elementy?')) { editor.selected = null; editor.cursor = null; layout.clear(); } });
+$('btn-clear').addEventListener('click', () => { if (confirm(t('confirm.clear'))) { editor.selected = null; editor.cursor = null; layout.clear(); } });
 
 $('btn-export').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(layout.toJSON(), null, 2)], { type: 'application/json' });
@@ -123,7 +130,7 @@ $('btn-import').addEventListener('click', () => $('file-import').click());
 $('file-import').addEventListener('change', async (e) => {
   const f = e.target.files[0]; if (!f) return;
   try { layout.load(JSON.parse(await f.text())); editor.fit(); menu.classList.add('hidden'); }
-  catch (err) { alert('Nie udało się wczytać: ' + err.message); }
+  catch (err) { alert(t('error.load') + err.message); }
   e.target.value = '';
 });
 $('btn-png').addEventListener('click', () => {
@@ -136,11 +143,25 @@ function download(blob, name) {
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
-const safeName = (s) => (s || 'makieta').replace(/[^\w\-]+/g, '_');
+const safeName = (s) => (s || 'layout').replace(/[^\w\-]+/g, '_');
+
+// ---- język -----------------------------------------------------------------
+const selLang = $('sel-lang');
+for (const [code, label] of Object.entries(LANGS)) selLang.append(new Option(label, code));
+selLang.value = getLang();
+selLang.addEventListener('change', () => { setLang(selLang.value); applyLanguage(); });
+function applyLanguage() {
+  applyDom();
+  fillGroups(); fillPieces();
+  bR.innerHTML = `R2 ↷<b>${t('pal.right')}</b>`; bR.title = t('pal.rightTitle');
+  quick.querySelectorAll('button').forEach((b, i) => { if (QUICK[i]) b.title = pieceName(BY_ID[QUICK[i]]); });
+  refreshMenu();
+}
+applyDom();
 
 // ---- start -----------------------------------------------------------------
 layout.onChange((kind) => { if (kind === 'change') layout.save(); });
-Layout.loadSaved(layout);
+if (!Layout.loadSaved(layout)) layout.name = t('default.name');
 if (!layout.pieces.length) demo();
 editor.fit();
 setMode((() => { try { return localStorage.getItem('routelayout.mode') || (innerWidth >= 900 ? 'split' : '2d'); } catch { return '2d'; } })());

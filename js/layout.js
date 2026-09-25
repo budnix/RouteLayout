@@ -16,7 +16,7 @@ export class Layout {
   constructor() {
     this.pieces = [];
     this.board = { w: 2000, h: 1000 };
-    this.name = 'Makieta';
+    this.name = 'Layout';
     this.listeners = new Set();
     this.undoStack = [];
     this.redoStack = [];
@@ -185,7 +185,7 @@ export class Layout {
   load(obj) {
     if (!obj || !Array.isArray(obj.pieces)) throw new Error('Nieprawidłowy plik układu');
     this.pushUndo();
-    this.name = obj.name || 'Makieta';
+    this.name = obj.name || 'Layout';
     this.board = obj.board || this.board;
     this.pieces = obj.pieces.filter((p) => BY_ID[p.id]).map((p) => ({ uid: nextUid++, id: p.id, x: +p.x || 0, y: +p.y || 0, rot: norm(+p.rot || 0) }));
     this.emit('change');
