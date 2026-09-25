@@ -23,6 +23,7 @@ export class Editor2D {
     this.strokes = [];             // szkic: tablice punktów [x,y] w mm
     this.stroke = null;            // bieżąca kreska
     this.aidGrid = { enabled: false, size: 50 };
+    this.normalizer = null;        // fn(points) -> points | null; normalizacja kreski po puszczeniu palca
     this.listeners = new Set();
     this.dpr = Math.min(devicePixelRatio || 1, 3);
 
@@ -208,7 +209,11 @@ export class Editor2D {
     const d = this.drag; this.drag = null;
     if (!d) return;
     if (d.draw) {
-      if (this.stroke && this.stroke.length > 3) { this.strokes.push(this.stroke); this.emit('sketch'); }
+      if (this.stroke && this.stroke.length > 3) {
+        const fixed = this.normalizer ? this.normalizer(this.stroke) : null;
+        this.strokes.push(fixed && fixed.length > 1 ? fixed : this.stroke);
+        this.emit('sketch');
+      }
       this.stroke = null; this.draw();
       return;
     }

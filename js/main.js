@@ -3,7 +3,7 @@ import { Layout } from './layout.js';
 import { Editor2D } from './editor2d.js';
 import { View3D } from './view3d.js';
 import { t, pieceName, applyDom, setLang, getLang, LANGS } from './i18n.js';
-import { fitStrokes } from './fitter.js';
+import { fitStrokes, normalizeStroke } from './fitter.js';
 import { SCENERY, SCENERY_GROUPS, sceneryName } from './scenery.js';
 
 const $ = (id) => document.getElementById(id);
@@ -126,8 +126,9 @@ applyGrid();
 
 // poprawianie rysunku (normalizacja) – domyślnie włączone
 const fixPref = { on: (() => { try { return localStorage.getItem('routelayout.fix') !== '0'; } catch { return true; } })() };
-$('chk-fix').checked = fixPref.on;
-$('chk-fix').addEventListener('change', (e) => { fixPref.on = e.target.checked; try { localStorage.setItem('routelayout.fix', fixPref.on ? '1' : '0'); } catch { /* ignoruj */ } });
+function applyFixPref() { editor.normalizer = fixPref.on ? (pts) => normalizeStroke(pts, layout) : null; $('chk-fix').checked = fixPref.on; }
+$('chk-fix').addEventListener('change', (e) => { fixPref.on = e.target.checked; try { localStorage.setItem('routelayout.fix', fixPref.on ? '1' : '0'); } catch { /* ignoruj */ } applyFixPref(); });
+applyFixPref();
 
 function setDrawMode(on) {
   editor.setMode(on ? 'draw' : 'edit');

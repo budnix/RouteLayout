@@ -449,3 +449,56 @@ function meanDeviation(pieces, rawStrokes) {
   }
   return { mean: sum / n, max };
 }
+
+
+// ============================================================================
+// Normalizacja "na żywo": kreska → łamana ze ścieżki idealnej (proste + łuki
+// o promieniach PIKO), używana przez edytor po każdym puszczeniu palca.
+// ============================================================================
+
+/**
+ * @param {number[][]} raw punkty kreski [x,y] w mm
+ * @param {Layout} layout istniejący układ (doczepianie do otwartych końców)
+ * @returns {number[][]|null} znormalizowane punkty lub null, gdy kreska za krótka
+ */
+export function normalizeStroke(raw, layout) {
+  const stroke = prepareStroke(raw);
+  if (!stroke) return null;
+  const openPorts = layout ? layout.openPorts().map((p) => ({ x: p.x, y: p.y, a: p.a })) : [];
+  let pose, from = 0, snapStart = true;
+  const att = findAttach(stroke, openPorts);
+  if (att) {
+    if (att.reverse) reverseStroke(stroke);
+    pose = { x: att.port.x, y: att.port.y, a: att.port.a }; snapStart = false;
+    from = nearest(stroke, pose.x, pose.y, 0, 0, 60).idx;
+  } else {
+    pose = { x: stroke.pts[0][0], y: stroke.pts[0][1], a: stroke.tan[0] };
+  }
+  const sub = from > 0 ? subStroke(stroke, from) : stroke;
+  if (sub.pts.length < 4) return null;
+  const { path, start } = idealPath(sub, segment(sub), pose, snapStart);
+  if (!path.length) return null;
+  const pts = pathToPoints(path, start);
+  // kreska odwrócona (doczepiona końcem) – oddaj w kierunku rysowania
+  return att?.reverse ? pts.reverse() : pts;
+}
+
+/** Łamana wzdłuż ścieżki idealnej: proste jako odcinki, łuki próbkowane co ~5°. */
+export function pathToPoints(path, start) {
+  let pose = { ...start };
+  const out = [[pose.x, pose.y]];
+  for (const p of path) {
+    if (p.type === 'straight') {
+      pose = { x: pose.x + p.L * Math.cos(d2r(pose.a)), y: pose.y + p.L * Math.sin(d2r(pose.a)), a: pose.a };
+      out.push([pose.x, pose.y]);
+    } else {
+      const r = p.radius.r, dir = p.dir;
+      const cx = pose.x - dir * r * Math.sin(d2r(pose.a)), cy = pose.y + dir * r * Math.cos(d2r(pose.a));
+      const a0 = pose.a - dir * 90;
+      const n = Math.max(2, Math.ceil(p.sweep / 5));
+      for (let i = 1; i <= n; i++) { const a = d2r(a0 + dir * p.sweep * i / n); out.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); }
+      pose = { x: out[out.length - 1][0], y: out[out.length - 1][1], a: norm(pose.a + dir * p.sweep) };
+    }
+  }
+  return out;
+}

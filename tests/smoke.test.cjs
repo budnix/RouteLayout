@@ -183,9 +183,18 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   const box = await page.locator('#canvas2d').boundingBox();
   const sx = box.x + 60, sy = box.y + box.height / 2;
   await page.mouse.move(sx, sy); await page.mouse.down();
-  for (let i = 1; i <= 40; i++) await page.mouse.move(sx + i * 6, sy);
+  for (let i = 1; i <= 40; i++) await page.mouse.move(sx + i * 6, sy + Math.sin(i / 2) * 3);
   for (let a = 0; a <= 90; a += 3) { const r = 120; await page.mouse.move(sx + 240 + r * Math.sin(a * Math.PI / 180), sy + r - r * Math.cos(a * Math.PI / 180)); }
   await page.mouse.up();
+  // normalizacja na żywo: krzywa z ręki po puszczeniu myszy jest prostą + łukiem (łamana, nie 41 surowych punktów)
+  const live = await page.evaluate(() => {
+    const st = window.__routelayout.editor.strokes[0];
+    // pierwsza część (prosta): wszystkie punkty do ~240 px w prawo leżą na jednej linii
+    const [x0, y0] = st[0]; const [x1, y1] = st[1];
+    const straightLen = Math.hypot(x1 - x0, y1 - y0);
+    return { n: st.length, straightLen, dy: Math.abs(y1 - y0) };
+  });
+  check(live.n < 30 && live.straightLen > 200 && live.dy < 0.01, `normalizacja na żywo: kreska → prosta ${live.straightLen.toFixed(0)} mm + łuk (${live.n} pkt)`);
   const nStrokes = await page.evaluate(() => document.getElementById('btn-finish').disabled);
   check(nStrokes === false, 'rysowanie: kreska zarejestrowana');
   await page.click('#btn-finish');
