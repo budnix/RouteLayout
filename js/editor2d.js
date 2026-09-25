@@ -17,6 +17,10 @@ export class Editor2D {
     this.pointers = new Map();
     this.drag = null;
     this.pinch = null;
+    this.mode = 'edit';            // 'edit' | 'draw'
+    this.strokes = [];             // szkic: tablice punktów [x,y] w mm
+    this.stroke = null;            // bieżąca kreska
+    this.aidGrid = { enabled: false, size: 50 };
     this.listeners = new Set();
     this.dpr = Math.min(devicePixelRatio || 1, 3);
 
@@ -110,6 +114,11 @@ export class Editor2D {
     return piece;
   }
 
+  setMode(mode) { this.mode = mode; this.stroke = null; this.draw(); this.emit('mode'); }
+  clearSketch() { this.strokes = []; this.stroke = null; this.draw(); this.emit('sketch'); }
+  undoStroke() { this.strokes.pop(); this.draw(); this.emit('sketch'); }
+  setAidGrid(enabled, size) { this.aidGrid = { enabled, size: Math.max(5, size || 50) }; this.draw(); }
+
   deleteSelected() {
     if (!this.selected) return;
     const p = this.selected;
@@ -128,11 +137,12 @@ export class Editor2D {
     this.pointers.set(e.pointerId, p);
     if (this.pointers.size === 2) {
       const [a, b] = [...this.pointers.values()];
-      this.drag = null;
+      this.drag = null; this.stroke = null;
       this.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, ox: this.view.ox, oy: this.view.oy, scale: this.view.scale };
       return;
     }
     const w = this.toWorld(p.x, p.y);
+    if (this.mode === 'draw') { this.stroke = [[w.x, w.y]]; this.drag = { start: p, moved: false, draw: true }; return; }
     const tol = 14 / this.view.scale; // ~14 px
     const port = this.nearestOpenPort(w, tol);
     const piece = this.layout.hitTest(w.x, w.y, Math.max(tol, 10));
@@ -157,6 +167,7 @@ export class Editor2D {
     }
     const d = this.drag;
     if (!d) return;
+    if (d.draw) { const w = this.toWorld(p.x, p.y); this.stroke?.push([w.x, w.y]); d.moved = true; this.draw(); return; }
     if (!d.moved && Math.hypot(p.x - d.start.x, p.y - d.start.y) < 6) return;
     d.moved = true;
     if (d.piece) {
@@ -174,6 +185,11 @@ export class Editor2D {
     if (this.pinch) { if (this.pointers.size < 2) this.pinch = null; this.drag = null; return; }
     const d = this.drag; this.drag = null;
     if (!d) return;
+    if (d.draw) {
+      if (this.stroke && this.stroke.length > 3) { this.strokes.push(this.stroke); this.emit('sketch'); }
+      this.stroke = null; this.draw();
+      return;
+    }
     if (!d.moved) {
       // tap
       if (d.port) { this.setCursor(d.port); this.selected = d.port.piece; this.emit('select'); }
@@ -227,6 +243,18 @@ export class Editor2D {
       for (let x = 0; x <= w; x += 100) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
       for (let y = 0; y <= h; y += 100) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
       ctx.strokeStyle = getCSS('--c-grid', 'rgba(0,0,0,0.07)');
+      ctx.lineWidth = 1 / s;
+      ctx.stroke();
+    }
+
+    // siatka pomocnicza (pomoc w szkicowaniu) – na całym widocznym obszarze
+    if (this.aidGrid.enabled && this.aidGrid.size * s >= 6) {
+      const g = this.aidGrid.size;
+      const tl = this.toWorld(0, 0), br = this.toWorld(W / this.dpr, H / this.dpr);
+      ctx.beginPath();
+      for (let x = Math.floor(tl.x / g) * g; x <= br.x; x += g) { ctx.moveTo(x, tl.y); ctx.lineTo(x, br.y); }
+      for (let y = Math.floor(tl.y / g) * g; y <= br.y; y += g) { ctx.moveTo(tl.x, y); ctx.lineTo(br.x, y); }
+      ctx.strokeStyle = getCSS('--c-aid-grid', 'rgba(30,120,220,0.18)');
       ctx.lineWidth = 1 / s;
       ctx.stroke();
     }
@@ -290,6 +318,16 @@ export class Editor2D {
         const wpt = Layout.localToWorld(piece, mid.x, mid.y - 22);
         ctx.fillText(def.code, wpt.x, wpt.y);
       }
+    }
+
+    // szkic
+    const strokes = this.stroke ? [...this.strokes, this.stroke] : this.strokes;
+    if (strokes.length) {
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = getCSS('--c-sketch', 'rgba(255,122,26,0.55)'); ctx.lineWidth = 12;
+      for (const st of strokes) { tracePath(st); ctx.stroke(); }
+      ctx.lineWidth = 2 / s; ctx.strokeStyle = getCSS('--c-accent', '#ff7a1a');
+      for (const st of strokes) { tracePath(st); ctx.stroke(); }
     }
 
     // otwarte porty

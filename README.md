@@ -10,6 +10,7 @@ A web app (HTML5, ES modules, Canvas 2D + three.js) for designing H0 model railw
 
 - Complete **PIKO A-Gleis H0** catalog (552xx series) with exact geometry: straights, curves R1–R4 / R9, 7.5° curves, standard, curved, three-way and Y turnouts, double slip, crossings, flex track, buffer stop
 - **Auto-drawing**: pick a piece, tap *Insert* — it snaps onto the active open track end at the correct angle. Tap any open end (e.g. a turnout branch) to continue from there
+- **Sketch mode**: draw the track path freehand with a finger or mouse, press *Finish drawing* and the app fits real PIKO pieces to it — straights, curves and turnouts where a second stroke branches off. Optional guide grid with configurable spacing
 - Drag pieces with a finger or mouse; nearby track ends snap together
 - **3D preview** with rails (16.5 mm gauge), sleepers, ballast, baseboard and shadows — rendered on demand to save battery
 - Undo/redo, autosave, JSON import/export, PNG export, bill of materials with article numbers
@@ -34,9 +35,10 @@ Then open `http://localhost:8080`.
 4. **Entry port** selects which end of the new piece connects to the active end (a curve via port 1 turns the other way; a turnout via port 2 is entered from its branch).
 5. Drag pieces to move them; ends close to each other snap. Rotate with ⟲ ⟳ or the `R` key.
 6. Switch **2D / 3D / 2D+3D** in the top bar. In 3D: one finger orbits, two fingers zoom and pan.
-7. Menu ☰: layout name, baseboard size, JSON export/import, PNG export, bill of materials.
+7. **Sketch mode** (✎): draw strokes where the track should go; start a new stroke on an existing one for a branch; a stroke starting at an open track end continues from it. *Finish drawing* fits pieces; *Undo* reverts the whole fit in one step. The guide grid checkbox and its spacing (menu) help keep strokes straight and parallel.
+8. Menu ☰: layout name, baseboard size, grid spacing, JSON export/import, PNG export, bill of materials.
 
-Keyboard: `Ctrl/Cmd+Z` undo, `Ctrl/Cmd+Shift+Z` / `Ctrl+Y` redo, `Delete` remove, `R` / `Shift+R` rotate, `Enter` insert.
+Keyboard: `Ctrl/Cmd+Z` undo, `Ctrl/Cmd+Shift+Z` / `Ctrl+Y` redo, `Delete` remove, `R` / `Shift+R` rotate, `Enter` insert (or finish drawing), `D` toggle sketch mode, `Esc` leave sketch mode.
 
 ## Track catalog
 
@@ -75,7 +77,8 @@ Other track systems (Roco, Tillig, Märklin C, Peco…) can be added by extendin
 
 - `js/catalog.js` — catalog data and geometry generator (segments: line/arc, ports with heading)
 - `js/layout.js` — layout model: transforms, connection detection, snapping, undo/redo, JSON, BOM
-- `js/editor2d.js` — Canvas 2D editor using Pointer Events
+- `js/editor2d.js` — Canvas 2D editor using Pointer Events (edit and sketch modes)
+- `js/fitter.js` — converts freehand strokes into PIKO pieces (greedy fit with one-step lookahead, turnout detection, attachment to open ends)
 - `js/view3d.js` — three.js preview (rails, sleepers, ballast, baseboard), on-demand rendering
 - `js/i18n.js` — UI and catalog translations (EN / DE / PL)
 - `js/main.js` — UI wiring

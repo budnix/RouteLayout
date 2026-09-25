@@ -3,6 +3,7 @@ import { Layout } from './layout.js';
 import { Editor2D } from './editor2d.js';
 import { View3D } from './view3d.js';
 import { t, pieceName, applyDom, setLang, getLang, LANGS } from './i18n.js';
+import { fitStrokes } from './fitter.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -87,6 +88,45 @@ $('btn-zoom-in').addEventListener('click', () => editor.zoomAt(editor.canvas.cli
 $('btn-zoom-out').addEventListener('click', () => editor.zoomAt(editor.canvas.clientWidth / 2, editor.canvas.clientHeight / 2, 0.8));
 $('btn-fit3d').addEventListener('click', () => view3d.fit());
 
+// ---- tryb rysowania ----------------------------------------------------------
+const gridPrefs = (() => { try { return JSON.parse(localStorage.getItem('routelayout.grid')) || {}; } catch { return {}; } })();
+const aidGrid = { enabled: !!gridPrefs.enabled, size: +gridPrefs.size || 50 };
+function applyGrid() {
+  editor.setAidGrid(aidGrid.enabled, aidGrid.size);
+  $('chk-grid').checked = aidGrid.enabled; $('chk-grid-menu').checked = aidGrid.enabled; $('in-grid').value = aidGrid.size;
+  try { localStorage.setItem('routelayout.grid', JSON.stringify(aidGrid)); } catch { /* ignoruj */ }
+}
+$('chk-grid').addEventListener('change', (e) => { aidGrid.enabled = e.target.checked; applyGrid(); });
+$('chk-grid-menu').addEventListener('change', (e) => { aidGrid.enabled = e.target.checked; applyGrid(); });
+$('in-grid').addEventListener('change', (e) => { aidGrid.size = Math.min(500, Math.max(5, +e.target.value || 50)); applyGrid(); });
+applyGrid();
+
+function setDrawMode(on) {
+  editor.setMode(on ? 'draw' : 'edit');
+  $('btn-draw').classList.toggle('active', on);
+  $('draw-bar').classList.toggle('hidden', !on);
+  $('canvas2d').classList.toggle('drawing', on);
+  $('hint').textContent = t(on ? 'draw.hint' : 'pal.hint');
+  if (on) { editor.selected = null; editor.emit('select'); }
+}
+$('btn-draw').addEventListener('click', () => setDrawMode(editor.mode !== 'draw'));
+$('btn-undo-stroke').addEventListener('click', () => editor.undoStroke());
+$('btn-clear-sketch').addEventListener('click', () => editor.clearSketch());
+$('btn-finish').addEventListener('click', finishDrawing);
+function finishDrawing() {
+  const { pieces } = fitStrokes(editor.strokes, layout);
+  if (!pieces.length) { alert(t('draw.none')); return; }
+  const added = layout.addMany(pieces);
+  editor.clearSketch();
+  setDrawMode(false);
+  editor.selected = added[added.length - 1];
+  const open = layout.openPorts().find((p) => p.piece === editor.selected);
+  editor.cursor = open ? { uid: editor.selected.uid, idx: open.idx } : null;
+  editor.emit('select'); editor.emit('cursor'); editor.draw();
+}
+editor.on((kind) => { if (kind === 'sketch') $('btn-finish').disabled = !editor.strokes.length; });
+$('btn-finish').disabled = true;
+
 // ---- narzędzia zaznaczenia -------------------------------------------------
 $('btn-rot-l').addEventListener('click', () => editor.rotateSelected(-15));
 $('btn-rot-r').addEventListener('click', () => editor.rotateSelected(15));
@@ -94,7 +134,7 @@ $('btn-del').addEventListener('click', () => editor.deleteSelected());
 editor.on((kind) => {
   if (kind !== 'select') return;
   const p = editor.selected;
-  $('sel-tools').classList.toggle('hidden', !p);
+  $('sel-tools').classList.toggle('hidden', !p || editor.mode === 'draw');
   if (p) $('sel-name').textContent = `${BY_ID[p.id].id} ${BY_ID[p.id].code}`;
   view3d.setSelected(p ? p.uid : null);
 });
@@ -106,7 +146,9 @@ document.addEventListener('keydown', (e) => {
   else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); layout.redo(); }
   else if (e.key === 'Delete' || e.key === 'Backspace') { editor.deleteSelected(); }
   else if (e.key === 'r') editor.rotateSelected(e.shiftKey ? -15 : 15);
-  else if (e.key === 'Enter') editor.addPiece(selPiece.value, +selEntry.value);
+  else if (e.key === 'Enter') { if (editor.mode === 'draw') finishDrawing(); else editor.addPiece(selPiece.value, +selEntry.value); }
+  else if (e.key === 'Escape' && editor.mode === 'draw') setDrawMode(false);
+  else if (e.key === 'd') setDrawMode(editor.mode !== 'draw');
 });
 
 // ---- menu ------------------------------------------------------------------
@@ -159,6 +201,7 @@ selLang.value = getLang();
 selLang.addEventListener('change', () => { setLang(selLang.value); applyLanguage(); });
 function applyLanguage() {
   applyDom();
+  $('hint').textContent = t(editor.mode === 'draw' ? 'draw.hint' : 'pal.hint');
   fillGroups(); fillPieces();
   bR.innerHTML = `R2 ↷<b>${t('pal.right')}</b>`; bR.title = t('pal.rightTitle');
   quick.querySelectorAll('button').forEach((b, i) => { if (QUICK[i]) b.title = pieceName(BY_ID[QUICK[i]]); });

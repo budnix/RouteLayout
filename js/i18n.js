@@ -7,6 +7,9 @@ const DICT = {
   pl: {
     'app.title': 'RouteLayout – makiety H0 (PIKO A-Gleis)',
     'app.description': 'Planer układów torów H0 na torach PIKO A-Gleis z podglądem 3D. Działa na iPadzie i iPhonie.',
+    'draw.toggle': 'Tryb rysowania: szkicuj tor palcem lub myszą', 'draw.grid': 'Siatka pomocnicza', 'draw.undoStroke': 'Cofnij ostatnią kreskę',
+    'draw.clear': 'Wyczyść szkic', 'draw.finish': 'Zakończ rysowanie', 'draw.hint': 'Rysuj przebieg toru. Odgałęzienie: zacznij nową kreskę na już narysowanej. Kreska zaczynająca się przy otwartym końcu toru doczepi się do niego.',
+    'draw.none': 'Nie udało się dopasować torów do szkicu. Rysuj dłuższe, płynne kreski.', 'draw.result': 'Wstawiono {n} elementów.', 'menu.gridSize': 'Siatka [mm]',
     'top.new': 'Nowy układ', 'confirm.new': 'Zacząć od zera? Bieżący układ zostanie usunięty (możesz go wcześniej wyeksportować do JSON).',
     'top.undo': 'Cofnij (Ctrl+Z)', 'top.redo': 'Ponów (Ctrl+Y)', 'top.menu': 'Menu',
     'hud.fit': 'Dopasuj widok', 'hud.fit3d': 'Dopasuj kamerę',
@@ -32,6 +35,9 @@ const DICT = {
   en: {
     'app.title': 'RouteLayout – H0 track planner (PIKO A-Gleis)',
     'app.description': 'H0 model railway track planner for PIKO A-Gleis with 3D preview. Works on iPad and iPhone.',
+    'draw.toggle': 'Draw mode: sketch track with finger or mouse', 'draw.grid': 'Guide grid', 'draw.undoStroke': 'Undo last stroke',
+    'draw.clear': 'Clear sketch', 'draw.finish': 'Finish drawing', 'draw.hint': 'Sketch the track path. For a branch, start a new stroke on an existing one. A stroke starting at an open track end attaches to it.',
+    'draw.none': 'Could not fit any track to the sketch. Draw longer, smoother strokes.', 'draw.result': 'Inserted {n} pieces.', 'menu.gridSize': 'Grid [mm]',
     'top.new': 'New layout', 'confirm.new': 'Start from scratch? The current layout will be deleted (you can export it to JSON first).',
     'top.undo': 'Undo (Ctrl+Z)', 'top.redo': 'Redo (Ctrl+Y)', 'top.menu': 'Menu',
     'hud.fit': 'Fit view', 'hud.fit3d': 'Fit camera',
@@ -57,6 +63,9 @@ const DICT = {
   de: {
     'app.title': 'RouteLayout – H0-Gleisplaner (PIKO A-Gleis)',
     'app.description': 'Gleisplaner für Modellbahn H0 mit PIKO A-Gleis und 3D-Vorschau. Läuft auf iPad und iPhone.',
+    'draw.toggle': 'Zeichenmodus: Gleisverlauf mit Finger oder Maus skizzieren', 'draw.grid': 'Hilfsraster', 'draw.undoStroke': 'Letzten Strich zurücknehmen',
+    'draw.clear': 'Skizze löschen', 'draw.finish': 'Zeichnen beenden', 'draw.hint': 'Gleisverlauf skizzieren. Abzweig: neuen Strich auf einem vorhandenen beginnen. Ein Strich, der an einem offenen Gleisende beginnt, wird dort angesetzt.',
+    'draw.none': 'Es konnten keine Gleise an die Skizze angepasst werden. Längere, gleichmäßige Striche zeichnen.', 'draw.result': '{n} Gleisstücke eingefügt.', 'menu.gridSize': 'Raster [mm]',
     'top.new': 'Neue Anlage', 'confirm.new': 'Von vorn beginnen? Die aktuelle Anlage wird gelöscht (vorher als JSON exportierbar).',
     'top.undo': 'Rückgängig (Strg+Z)', 'top.redo': 'Wiederholen (Strg+Y)', 'top.menu': 'Menü',
     'hud.fit': 'Ansicht anpassen', 'hud.fit3d': 'Kamera anpassen',

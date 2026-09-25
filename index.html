@@ -38,6 +38,13 @@
         <button id="btn-fit2d" class="hud-btn" data-i18n-title="hud.fit">⤢</button>
         <button id="btn-zoom-in" class="hud-btn">+</button>
         <button id="btn-zoom-out" class="hud-btn">−</button>
+        <button id="btn-draw" class="hud-btn" data-i18n-title="draw.toggle">✎</button>
+      </div>
+      <div id="draw-bar" class="draw-bar hidden">
+        <label class="chk"><input id="chk-grid" type="checkbox"> <span data-i18n="draw.grid"></span></label>
+        <button id="btn-undo-stroke" data-i18n-title="draw.undoStroke">↶</button>
+        <button id="btn-clear-sketch" data-i18n="draw.clear"></button>
+        <button id="btn-finish" class="primary" data-i18n="draw.finish"></button>
       </div>
       <div id="sel-tools" class="sel-tools hidden">
         <span id="sel-name" class="sel-name"></span>
@@ -91,6 +98,10 @@
         <label class="field"><span data-i18n="menu.boardW"></span><input id="in-w" type="number" min="200" step="10"></label>
         <label class="field"><span data-i18n="menu.boardH"></span><input id="in-h" type="number" min="200" step="10"></label>
         <button id="btn-board" class="grow" data-i18n="menu.apply"></button>
+      </div>
+      <div class="row">
+        <label class="field"><span data-i18n="menu.gridSize"></span><input id="in-grid" type="number" min="5" max="500" step="5"></label>
+        <label class="chk grow"><input id="chk-grid-menu" type="checkbox"> <span data-i18n="draw.grid"></span></label>
       </div>
       <div class="row wrap">
         <button id="btn-export" data-i18n="menu.export"></button>

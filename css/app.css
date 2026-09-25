@@ -15,6 +15,8 @@
   --c-ballast: #cfc8ba;
   --c-sleeper: #8d7b64;
   --c-rail: #444;
+  --c-aid-grid: rgba(30, 120, 220, 0.18);
+  --c-sketch: rgba(255, 122, 26, 0.55);
   --topbar-h: 52px;
   --palette-h: 196px;
   --sat: env(safe-area-inset-top, 0px);
@@ -27,7 +29,7 @@
   :root:not([data-theme="light"]) {
     --c-bg: #121820; --c-bg-editor: #1a2230; --c-panel: #1e2733; --c-text: #e8edf3; --c-muted: #9aa8b8;
     --c-border: #33404f; --c-board: #2a3140; --c-board-edge: #6d6250; --c-grid: rgba(255,255,255,0.07);
-    --c-ballast: #6f6a60; --c-sleeper: #5a4a3a; --c-rail: #c9ccd1;
+    --c-ballast: #6f6a60; --c-sleeper: #5a4a3a; --c-rail: #c9ccd1; --c-aid-grid: rgba(120, 180, 255, 0.2);
   }
 }
 
@@ -92,6 +94,16 @@ select, input[type=text], input[type=number] {
 }
 .sel-tools .sel-name { padding: 0 8px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sel-tools button { width: 40px; padding: 0; }
+
+.hud-btn.active { background: var(--c-accent); color: #fff; border-color: transparent; }
+.draw-bar {
+  position: absolute; left: calc(10px + var(--sal)); right: calc(60px + var(--sar)); bottom: 10px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  background: var(--c-panel); border: 1px solid var(--c-border); border-radius: 12px; padding: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+}
+.draw-bar .primary { margin-left: auto; }
+.chk { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 0 6px; min-height: 40px; }
+.chk input { width: 18px; height: 18px; }
+#canvas2d.drawing { cursor: crosshair; }
 
 /* paleta */
 .palette {

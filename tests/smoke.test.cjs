@@ -30,6 +30,22 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
+
+  // ---- algorytm dopasowania (Node, bez przeglądarki) ----
+  const { fitStrokes, deviation } = await import('../js/fitter.js');
+  const { Layout } = await import('../js/layout.js');
+  const s1 = [];
+  for (let x = 100; x <= 820; x += 6) s1.push([x, 300]);
+  for (let a = 0; a <= 90; a += 1.5) { const r = 430; s1.push([820 + r * Math.sin(a * Math.PI / 180), 300 + r - r * Math.cos(a * Math.PI / 180)]); }
+  const s2 = []; for (let d = 0; d <= 500; d += 6) s2.push([400 + d * Math.cos(0.26), 300 + d * Math.sin(0.26)]);
+  const fit = fitStrokes([s1, s2], new Layout());
+  const ids = fit.pieces.map((p) => p.id);
+  check(ids.filter((i) => i === '55212').length === 3, 'fitter: łuk r≈430 mm → 3 × R2 (' + ids.join(',') + ')');
+  check(ids.includes('55220') || ids.includes('55221'), 'fitter: odgałęzienie rozpoznane jako rozjazd');
+  const dev = deviation(fit.pieces.filter((p) => p.y < 900), s1);
+  check(dev < 25, `fitter: średnie odchylenie od kreski ${dev.toFixed(1)} mm < 25`);
+  const lay = new Layout(); lay.addMany(fit.pieces);
+  check(lay.openPorts().length === 3, 'fitter: elementy połączone (3 otwarte końce: start, koniec, odgałęzienie)');
   const { srv, url } = await serve();
   const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
   const errors = [];
@@ -102,6 +118,28 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.waitForTimeout(500);
   const afterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces.length);
   check(afterNew === 0 && afterReload === 0, 'nowy układ: pusty i pozostaje pusty po przeładowaniu');
+
+  // tryb rysowania: kreska myszą (prosta 600 mm + łuk) -> po "Zakończ" powstają tory
+  await page.click('#btn-new');
+  await page.click('#btn-fit2d');
+  await page.click('#btn-draw');
+  const drawn = await page.evaluate(() => document.getElementById('draw-bar').classList.contains('hidden') === false);
+  check(drawn, 'rysowanie: pasek narzędzi szkicu widoczny');
+  await page.check('#chk-grid');
+  const gridOn = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.grid')).enabled);
+  check(gridOn, 'rysowanie: siatka pomocnicza zapisana w ustawieniach');
+  const box = await page.locator('#canvas2d').boundingBox();
+  const sx = box.x + 60, sy = box.y + box.height / 2;
+  await page.mouse.move(sx, sy); await page.mouse.down();
+  for (let i = 1; i <= 40; i++) await page.mouse.move(sx + i * 6, sy);
+  for (let a = 0; a <= 90; a += 3) { const r = 120; await page.mouse.move(sx + 240 + r * Math.sin(a * Math.PI / 180), sy + r - r * Math.cos(a * Math.PI / 180)); }
+  await page.mouse.up();
+  const nStrokes = await page.evaluate(() => document.getElementById('btn-finish').disabled);
+  check(nStrokes === false, 'rysowanie: kreska zarejestrowana');
+  await page.click('#btn-finish');
+  const fitted = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces);
+  check(fitted.length >= 3 && fitted.some((p) => p.id.startsWith('5521')), 'rysowanie: szkic zamieniony na proste i łuki');
+  await page.screenshot({ path: path.join(OUT, 'desktop-fitted.png') });
 
   // i18n: przełączenie na DE zmienia teksty UI i nazwy w katalogu
   const de = await page.evaluate(() => {

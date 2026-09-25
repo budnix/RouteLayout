@@ -100,6 +100,13 @@ export class Layout {
     this.emit('change');
     return piece;
   }
+  /** Dodaje wiele elementów jako jeden krok undo. */
+  addMany(list) {
+    this.pushUndo();
+    const out = list.map((p) => { const piece = { uid: nextUid++, id: p.id, x: p.x, y: p.y, rot: norm(p.rot) }; this.pieces.push(piece); return piece; });
+    this.emit('change');
+    return out;
+  }
   attach(articleId, entry, target) { return this.add(articleId, Layout.poseFor(articleId, entry, target)); }
   remove(piece) {
     this.pushUndo();
