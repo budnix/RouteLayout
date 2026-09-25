@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+  <title>RouteLayout – makiety H0 (Piko A-Gleis)</title>
+  <meta name="description" content="Planer układów torów H0 na torach PIKO A-Gleis z podglądem 3D. Działa na iPadzie i iPhonie.">
+  <meta name="theme-color" content="#1d2b3a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RouteLayout">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">▣</span> RouteLayout <span class="sub">H0 · PIKO A</span></div>
+    <div class="topbar-actions">
+      <button id="btn-undo" class="icon" title="Cofnij (Ctrl+Z)">↶</button>
+      <button id="btn-redo" class="icon" title="Ponów (Ctrl+Y)">↷</button>
+      <div class="seg" role="tablist">
+        <button id="tab-2d" class="active" role="tab">2D</button>
+        <button id="tab-3d" role="tab">3D</button>
+        <button id="tab-split" role="tab" class="wide-only">2D + 3D</button>
+      </div>
+      <button id="btn-menu" class="icon" title="Menu">☰</button>
+    </div>
+  </header>
+
+  <main class="workspace mode-2d">
+    <section id="pane-2d" class="pane">
+      <canvas id="canvas2d"></canvas>
+      <div class="hud">
+        <button id="btn-fit2d" class="hud-btn" title="Dopasuj widok">⤢</button>
+        <button id="btn-zoom-in" class="hud-btn">+</button>
+        <button id="btn-zoom-out" class="hud-btn">−</button>
+      </div>
+      <div id="sel-tools" class="sel-tools hidden">
+        <span id="sel-name" class="sel-name"></span>
+        <button id="btn-rot-l" title="Obróć −15°">⟲</button>
+        <button id="btn-rot-r" title="Obróć +15°">⟳</button>
+        <button id="btn-del" class="danger" title="Usuń">🗑</button>
+      </div>
+    </section>
+    <section id="pane-3d" class="pane">
+      <div id="view3d"></div>
+      <div class="hud">
+        <button id="btn-fit3d" class="hud-btn" title="Dopasuj kamerę">⤢</button>
+      </div>
+    </section>
+  </main>
+
+  <aside class="palette" id="palette">
+    <div class="palette-grip" id="palette-grip"><span></span></div>
+    <div class="palette-body">
+      <div class="row">
+        <label class="field">
+          <span>Grupa</span>
+          <select id="sel-group"></select>
+        </label>
+        <label class="field grow">
+          <span>Element PIKO</span>
+          <select id="sel-piece"></select>
+        </label>
+      </div>
+      <div class="row">
+        <label class="field">
+          <span>Wejście portem</span>
+          <select id="sel-entry"></select>
+        </label>
+        <button id="btn-add" class="primary grow">＋ Wstaw</button>
+      </div>
+      <div class="quick" id="quick"></div>
+      <p class="hint" id="hint">Wybierz element i naciśnij „Wstaw”. Pomarańczowa kropka to aktywny koniec toru – kolejny element doklei się tam automatycznie. Stuknij niebieską kropkę, aby zmienić aktywny koniec.</p>
+    </div>
+  </aside>
+
+  <div id="menu" class="sheet hidden">
+    <div class="sheet-backdrop" data-close></div>
+    <div class="sheet-panel">
+      <h2>Makieta</h2>
+      <label class="field"><span>Nazwa</span><input id="in-name" type="text"></label>
+      <div class="row">
+        <label class="field"><span>Blat szer. [mm]</span><input id="in-w" type="number" min="200" step="10"></label>
+        <label class="field"><span>Blat gł. [mm]</span><input id="in-h" type="number" min="200" step="10"></label>
+        <button id="btn-board" class="grow">Zastosuj</button>
+      </div>
+      <div class="row wrap">
+        <button id="btn-export">Eksport JSON</button>
+        <button id="btn-import">Import JSON</button>
+        <input id="file-import" type="file" accept="application/json,.json" hidden>
+        <button id="btn-png">Zapisz PNG (2D)</button>
+        <button id="btn-clear" class="danger">Wyczyść</button>
+      </div>
+      <h2>Zestawienie części</h2>
+      <div id="bom" class="bom"></div>
+      <p class="hint">Numery katalogowe PIKO A-Gleis (seria 552xx). Geometria: moduł 470 mm, rozstaw torów równoległych 61,88 mm.</p>
+      <button class="primary" data-close>Zamknij</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

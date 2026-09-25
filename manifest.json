@@ -1,0 +1,15 @@
+{
+  "name": "RouteLayout – makiety H0",
+  "short_name": "RouteLayout",
+  "description": "Planer układów torów H0 (PIKO A-Gleis) z podglądem 3D",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1d2b3a",
+  "theme_color": "#1d2b3a",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
