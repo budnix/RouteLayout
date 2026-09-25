@@ -88,7 +88,7 @@ npm test            # smoke test in headless Chromium, screenshots in test-resul
 ```
 
 - `.github/workflows/test.yml` — runs the tests on every push and pull request.
-- `.github/workflows/pages.yml` — on push to `main` runs the tests and deploys to GitHub Pages (repo setting: Pages → Source → **GitHub Actions**).
+- `.github/workflows/pages.yml` — after a green `Test` run on `main`, deploys that commit to GitHub Pages (repo setting: Pages → Source → **GitHub Actions**).
 
 ## File format
 
