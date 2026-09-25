@@ -1,87 +1,108 @@
-# RouteLayout — planer makiet H0 na torach PIKO A-Gleis
+# RouteLayout — H0 track planner for PIKO A-Gleis with 3D preview
 
-Aplikacja webowa (HTML5, ES modules, Canvas 2D + three.js) do projektowania układów torów w skali H0 z podglądem 3D. Działa w Safari na iPadzie i iPhonie (dotyk, pinch-zoom, tryb „dodaj do ekranu głównego”) oraz na desktopie.
+**Live app: https://budnix.github.io/RouteLayout/**
 
-## Uruchomienie
+A web app (HTML5, ES modules, Canvas 2D + three.js) for designing H0 model railway layouts with a real-time 3D preview. Runs in Safari on iPad and iPhone (touch, pinch-zoom, "Add to Home Screen") as well as on desktop browsers. No build step, no backend, no account — your layout is saved in the browser.
 
-To jest strona statyczna — nie ma builda ani zależności do instalowania. Wystarczy serwer HTTP (moduły ES nie ładują się z `file://`):
+![RouteLayout on desktop: 2D editor next to the 3D preview](docs/screenshot-desktop.png)
+
+## Features
+
+- Complete **PIKO A-Gleis H0** catalog (552xx series) with exact geometry: straights, curves R1–R4 / R9, 7.5° curves, standard, curved, three-way and Y turnouts, double slip, crossings, flex track, buffer stop
+- **Auto-drawing**: pick a piece, tap *Insert* — it snaps onto the active open track end at the correct angle. Tap any open end (e.g. a turnout branch) to continue from there
+- Drag pieces with a finger or mouse; nearby track ends snap together
+- **3D preview** with rails (16.5 mm gauge), sleepers, ballast, baseboard and shadows — rendered on demand to save battery
+- Undo/redo, autosave, JSON import/export, PNG export, bill of materials with article numbers
+- Configurable baseboard size, dark mode, PWA manifest
+
+## Running locally
+
+It's a static site. Any HTTP server will do (ES modules don't load from `file://`):
 
 ```sh
-npx serve .           # albo: python3 -m http.server 8080
+npx serve .           # or: python3 -m http.server 8080
 ```
 
-i otwórz `http://localhost:8080`. Na GitHub Pages wystarczy wskazać gałąź z tym katalogiem.
+Then open `http://localhost:8080`.
 
-## Jak się rysuje
+## How to draw
 
-1. Wybierz grupę i element PIKO z listy (albo użyj szybkich przycisków) i naciśnij **Wstaw**.
-2. Pomarańczowa kropka ze strzałką to **aktywny koniec** toru. Kolejny wstawiony element doklei się do niego z właściwym kątem — to jest auto-rysowanie.
-3. Stuknij dowolną niebieską kropkę (otwarty koniec), aby przenieść tam aktywny koniec — np. na odgałęzienie rozjazdu.
-4. „Wejście portem” wybiera, którym końcem nowy element wchodzi do aktywnego końca (łuk portem 1 = skręt w drugą stronę; rozjazd portem 2 = wjazd od strony odgałęzienia).
-5. Elementy można przeciągać palcem/myszą; gdy końce zbliżą się do siebie, dociągają się (snap). Obracanie: przyciski ⟲ ⟳ lub klawisz `R`.
-6. Przełącznik **2D / 3D / 2D+3D** w pasku górnym. W 3D: jeden palec obraca, dwa palce przybliżają i przesuwają.
-7. Menu ☰: nazwa, rozmiar blatu, eksport/import JSON, zapis PNG, zestawienie części (BOM).
+1. Choose a group and a PIKO piece from the list (or use the quick buttons) and press **Insert**.
+2. The orange dot with an arrow is the **active track end**. The next inserted piece attaches there with the right angle.
+3. Tap any blue dot (open end) to move the active end there — e.g. onto a turnout's branch.
+4. **Entry port** selects which end of the new piece connects to the active end (a curve via port 1 turns the other way; a turnout via port 2 is entered from its branch).
+5. Drag pieces to move them; ends close to each other snap. Rotate with ⟲ ⟳ or the `R` key.
+6. Switch **2D / 3D / 2D+3D** in the top bar. In 3D: one finger orbits, two fingers zoom and pan.
+7. Menu ☰: layout name, baseboard size, JSON export/import, PNG export, bill of materials.
 
-Układ zapisuje się automatycznie w przeglądarce (localStorage).
+Keyboard: `Ctrl/Cmd+Z` undo, `Ctrl/Cmd+Shift+Z` / `Ctrl+Y` redo, `Delete` remove, `R` / `Shift+R` rotate, `Enter` insert.
 
-Skróty: `Ctrl/Cmd+Z` cofnij, `Ctrl/Cmd+Shift+Z` / `Ctrl+Y` ponów, `Delete` usuń, `R` / `Shift+R` obrót, `Enter` wstaw.
+## Track catalog
 
-## Katalog torów
+`js/catalog.js` contains every PIKO A-Gleis H0 element (552xx series, without roadbed) with geometry from the PIKO brochure (470 mm module, 61.88 mm parallel track spacing):
 
-`js/catalog.js` zawiera wszystkie elementy PIKO A-Gleis H0 (seria 552xx, bez podsypki) z geometrią wg prospektu PIKO:
-
-| Nr | Kod | Opis |
+| No. | Code | Description |
 |---|---|---|
-| 55200 | G239 | prosta 239,07 mm |
-| 55201 | G231 | prosta 230,93 mm |
-| 55202 | G119 | prosta 119,54 mm |
-| 55203 | G115 | prosta 115,46 mm |
-| 55204 | G107 | prosta 107,32 mm |
-| 55205 | G62 | prosta 61,88 mm |
-| 55206 | G31 | prosta 30,94 mm |
-| 55207 / 55208 | ÜG | przejściówki 62 mm |
-| 55209 | G940 | flex 940 mm |
-| 55211–55214 | R1–R4 | łuki 30°, r = 360 / 421,88 / 483,75 / 545,63 mm |
-| 55215* / 55218 | R1 7,5° / R2 7,5° | krótkie łuki |
-| 55219 | R9 | przeciwłuk 15°, r = 907,97 mm |
-| 55220 / 55221 | WL / WR | rozjazd lewy / prawy 15°, R9, 239 mm |
-| 55222 / 55223 | BWL / BWR | rozjazd łukowy R2/R3 |
-| 55227 / 55228 | BWL-R3 / BWR-R3 | rozjazd łukowy R3/R4 |
-| 55224 | DKW | rozjazd krzyżowy podwójny 15° |
-| 55225 | W3 | rozjazd trójdrogowy |
-| 55226 | WY | rozjazd Y |
-| 55240 / 55241 | K15 / K30 | krzyżownice 15° / 30° |
-| 55280 | — | kozioł oporowy |
+| 55200 | G239 | straight 239.07 mm |
+| 55201 | G231 | straight 230.93 mm |
+| 55202 | G119 | straight 119.54 mm |
+| 55203 | G115 | straight 115.46 mm |
+| 55204 | G107 | straight 107.32 mm |
+| 55205 | G62 | straight 61.88 mm |
+| 55206 | G31 | straight 30.94 mm |
+| 55207 / 55208 | ÜG | transition tracks 62 mm |
+| 55209 | G940 | flex track 940 mm |
+| 55211–55214 | R1–R4 | curves 30°, r = 360 / 421.88 / 483.75 / 545.63 mm |
+| 55215* / 55218 | R1 7.5° / R2 7.5° | short curves |
+| 55219 | R9 | counter-curve 15°, r = 907.97 mm |
+| 55220 / 55221 | WL / WR | left / right turnout 15°, R9, 239 mm |
+| 55222 / 55223 | BWL / BWR | curved turnout R2/R3 |
+| 55227 / 55228 | BWL-R3 / BWR-R3 | curved turnout R3/R4 |
+| 55224 | DKW | double slip 15° |
+| 55225 | W3 | three-way turnout |
+| 55226 | WY | Y turnout |
+| 55240 / 55241 | K15 / K30 | crossings 15° / 30° |
+| 55280 | — | buffer stop |
 
-`*` numer katalogowy do potwierdzenia (geometria poprawna).
+`*` article number to be confirmed (geometry is correct).
 
-Rozjazdy łukowe są modelowane jako dwa łuki o wspólnym początku (jak w bibliotekach AnyRail/SCARM); PIKO zaleca po nich wstawkę G62.
+Curved turnouts are modelled as two arcs sharing a start point (as in AnyRail/SCARM libraries); PIKO recommends a G62 filler after them.
 
-## Struktura
+Other track systems (Roco, Tillig, Märklin C, Peco…) can be added by extending `js/catalog.js` — every piece is just a list of line/arc segments plus connection ports.
 
-- `js/catalog.js` — dane i generator geometrii (odcinki: linia/łuk, porty z kierunkiem)
-- `js/layout.js` — model układu: transformacje, wykrywanie połączeń, snap, undo/redo, JSON, BOM
-- `js/editor2d.js` — edytor Canvas 2D z Pointer Events
-- `js/view3d.js` — podgląd three.js (szyny, podkłady, podsypka, blat), render on-demand
-- `js/main.js` — UI
-- `vendor/` — three.js (MIT) skopiowane z npm, bez CDN
+## Project structure
 
-## Testy i CI
+- `js/catalog.js` — catalog data and geometry generator (segments: line/arc, ports with heading)
+- `js/layout.js` — layout model: transforms, connection detection, snapping, undo/redo, JSON, BOM
+- `js/editor2d.js` — Canvas 2D editor using Pointer Events
+- `js/view3d.js` — three.js preview (rails, sleepers, ballast, baseboard), on-demand rendering
+- `js/main.js` — UI wiring
+- `vendor/` — three.js (MIT) copied from npm, no CDN
+
+## Tests and CI
 
 ```sh
 npm ci
 npx playwright install chromium
-npm test            # test dymny w headless Chromium, zrzuty w test-results/
+npm test            # smoke test in headless Chromium, screenshots in test-results/
 ```
 
-- `.github/workflows/test.yml` — uruchamia testy przy każdym pushu i PR.
-- `.github/workflows/pages.yml` — po pushu do `main` uruchamia testy i publikuje stronę na GitHub Pages (w ustawieniach repo: Pages → Source → **GitHub Actions**).
+- `.github/workflows/test.yml` — runs the tests on every push and pull request.
+- `.github/workflows/pages.yml` — on push to `main` runs the tests and deploys to GitHub Pages (repo setting: Pages → Source → **GitHub Actions**).
 
-## Format pliku
+## File format
 
 ```json
-{ "version": 1, "name": "Makieta", "board": { "w": 2000, "h": 1000 },
+{ "version": 1, "name": "Layout", "board": { "w": 2000, "h": 1000 },
   "pieces": [ { "id": "55200", "x": 300, "y": 250, "rot": 0 } ] }
 ```
 
-`x, y` w mm (początek elementu = port 0), `rot` w stopniach.
+`x, y` in mm (piece origin = port 0), `rot` in degrees.
+
+## Contributing
+
+Issues and pull requests are welcome — especially geometry corrections, new track systems and iOS quirks.
+
+## License
+
+MIT. three.js is © its authors, MIT licensed (see `vendor/THREE-LICENSE`).
