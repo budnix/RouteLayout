@@ -422,7 +422,12 @@ export function fitNormalized(rawStrokes, layout) {
  * snapu, nie błąd. Zachłanne dopasowanie bierzemy tylko wtedy, gdy
  * normalizacja wyraźnie odstaje od tego, co narysowano.
  */
-export function fitStrokes(rawStrokes, layout) {
+export function fitStrokes(rawStrokes, layout, { normalize = true } = {}) {
+  if (!normalize) {
+    // "dosłownie": tor ma podążać za kreską tak, jak ją narysowano
+    const g = fitGreedy(rawStrokes, layout);
+    return { ...g, method: 'greedy', deviation: meanDeviation(g.pieces, rawStrokes) };
+  }
   const a = fitNormalized(rawStrokes, layout);
   const da = meanDeviation(a.pieces, rawStrokes);
   if (a.pieces.length && da.mean < 40 && da.max < 110) return { ...a, method: 'normalized', deviation: da };

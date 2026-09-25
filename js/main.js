@@ -108,6 +108,9 @@ $('btn-zoom-in').addEventListener('click', () => editor.zoomAt(editor.canvas.cli
 $('btn-zoom-out').addEventListener('click', () => editor.zoomAt(editor.canvas.clientWidth / 2, editor.canvas.clientHeight / 2, 0.8));
 $('btn-fit3d').addEventListener('click', () => view3d.fit());
 
+// hak diagnostyczny (testy, konsola)
+window.__routelayout = { layout, editor, view3d };
+
 // ---- tryb rysowania ----------------------------------------------------------
 const gridPrefs = (() => { try { return JSON.parse(localStorage.getItem('routelayout.grid')) || {}; } catch { return {}; } })();
 const aidGrid = { enabled: !!gridPrefs.enabled, size: +gridPrefs.size || 50 };
@@ -120,6 +123,11 @@ $('chk-grid').addEventListener('change', (e) => { aidGrid.enabled = e.target.che
 $('chk-grid-menu').addEventListener('change', (e) => { aidGrid.enabled = e.target.checked; applyGrid(); });
 $('in-grid').addEventListener('change', (e) => { aidGrid.size = Math.min(500, Math.max(5, +e.target.value || 50)); applyGrid(); });
 applyGrid();
+
+// poprawianie rysunku (normalizacja) – domyślnie włączone
+const fixPref = { on: (() => { try { return localStorage.getItem('routelayout.fix') !== '0'; } catch { return true; } })() };
+$('chk-fix').checked = fixPref.on;
+$('chk-fix').addEventListener('change', (e) => { fixPref.on = e.target.checked; try { localStorage.setItem('routelayout.fix', fixPref.on ? '1' : '0'); } catch { /* ignoruj */ } });
 
 function setDrawMode(on) {
   editor.setMode(on ? 'draw' : 'edit');
@@ -134,7 +142,9 @@ $('btn-undo-stroke').addEventListener('click', () => editor.undoStroke());
 $('btn-clear-sketch').addEventListener('click', () => editor.clearSketch());
 $('btn-finish').addEventListener('click', finishDrawing);
 function finishDrawing() {
-  const { pieces } = fitStrokes(editor.strokes, layout);
+  const result = fitStrokes(editor.strokes, layout, { normalize: fixPref.on });
+  window.__routelayout.lastFit = result;
+  const { pieces } = result;
   if (!pieces.length) { alert(t('draw.none')); return; }
   const added = layout.addMany(pieces);
   editor.clearSketch();
@@ -242,9 +252,6 @@ function applyLanguage() {
   refreshMenu();
 }
 applyDom();
-
-// hak diagnostyczny (testy, konsola)
-window.__routelayout = { layout, editor, view3d };
 
 // ---- start -----------------------------------------------------------------
 layout.onChange((kind) => { if (kind === 'change') layout.save(); });

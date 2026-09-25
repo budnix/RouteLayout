@@ -178,6 +178,18 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.click('#btn-finish');
   const fitted = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces);
   check(fitted.length >= 3 && fitted.some((p) => p.id.startsWith('5521')), 'rysowanie: szkic zamieniony na proste i łuki');
+  const m1 = await page.evaluate(() => window.__routelayout.lastFit.method);
+  check(m1 === 'normalized', 'rysowanie: z „Poprawiaj rysunek” użyta normalizacja');
+  // to samo bez poprawiania: tor dosłownie za kreską (metoda zachłanna), ustawienie zapamiętane
+  await page.click('#btn-new'); await page.click('#btn-fit2d'); await page.click('#btn-draw');
+  await page.uncheck('#chk-fix');
+  await page.mouse.move(sx, sy); await page.mouse.down();
+  for (let i = 1; i <= 40; i++) await page.mouse.move(sx + i * 6, sy + Math.sin(i / 3) * 4);
+  await page.mouse.up();
+  await page.click('#btn-finish');
+  const m2 = await page.evaluate(() => ({ m: window.__routelayout.lastFit.method, pref: localStorage.getItem('routelayout.fix'), n: window.__routelayout.layout.pieces.length }));
+  check(m2.m === 'greedy' && m2.pref === '0' && m2.n > 0, `rysowanie: bez poprawiania metoda zachłanna (${m2.n} el.), ustawienie zapamiętane`);
+  await page.click('#btn-draw'); await page.check('#chk-fix'); await page.click('#btn-draw');
   await page.screenshot({ path: path.join(OUT, 'desktop-fitted.png') });
 
   // sceneria: wstaw drzewo i drogę, zmień rozmiar drogi, sprawdź zapis i 3D
