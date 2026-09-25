@@ -66,6 +66,17 @@ Rozjazdy łukowe są modelowane jako dwa łuki o wspólnym początku (jak w bibl
 - `js/main.js` — UI
 - `vendor/` — three.js (MIT) skopiowane z npm, bez CDN
 
+## Testy i CI
+
+```sh
+npm ci
+npx playwright install chromium
+npm test            # test dymny w headless Chromium, zrzuty w test-results/
+```
+
+- `.github/workflows/test.yml` — uruchamia testy przy każdym pushu i PR.
+- `.github/workflows/pages.yml` — po pushu do `main` uruchamia testy i publikuje stronę na GitHub Pages (w ustawieniach repo: Pages → Source → **GitHub Actions**).
+
 ## Format pliku
 
 ```json
