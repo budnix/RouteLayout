@@ -240,6 +240,15 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.screenshot({ path: path.join(OUT, 'desktop-turntable-3d.png') });
   await page.click('#tab-2d');
 
+  // chowanie panelu bocznego: canvas 2D rośnie, stan zapamiętany
+  await page.click('#tab-2d');
+  const wBefore = await page.evaluate(() => document.getElementById('canvas2d').clientWidth);
+  await page.click('#btn-side'); await page.waitForTimeout(200);
+  const wAfter = await page.evaluate(() => document.getElementById('canvas2d').clientWidth);
+  const sideSaved = await page.evaluate(() => localStorage.getItem('routelayout.side'));
+  check(wAfter > wBefore + 300 && sideSaved === '1', `panel boczny: schowany, canvas ${wBefore} → ${wAfter} px`);
+  await page.click('#btn-side'); await page.waitForTimeout(200);
+
   // i18n: przełączenie na DE zmienia teksty UI i nazwy w katalogu
   const de = await page.evaluate(() => {
     const sel = document.getElementById('sel-lang'); sel.value = 'de'; sel.dispatchEvent(new Event('change'));

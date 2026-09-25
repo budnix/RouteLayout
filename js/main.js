@@ -70,6 +70,15 @@ bR.innerHTML = `R2 <svg class="ic sm"><use href="#i-rotate-cw"/></svg><b>${t('pa
 bR.addEventListener('click', () => editor.addPiece('55212', 1));
 quick.append(bR);
 
+// chowanie panelu bocznego (szerokie ekrany)
+function setSide(collapsed) {
+  document.body.classList.toggle('side-collapsed', collapsed);
+  try { localStorage.setItem('routelayout.side', collapsed ? '1' : '0'); } catch { /* ignoruj */ }
+  requestAnimationFrame(() => { editor.resize(); view3d.resize(); });
+}
+$('btn-side').addEventListener('click', () => setSide(!document.body.classList.contains('side-collapsed')));
+try { if (localStorage.getItem('routelayout.side') === '1') setSide(true); } catch { /* ignoruj */ }
+
 // zwijanie palety na telefonie
 $('palette-grip').addEventListener('click', () => { $('palette').classList.toggle('collapsed'); setTimeout(() => { editor.resize(); view3d.resize(); }, 220); });
 

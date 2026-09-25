@@ -155,9 +155,20 @@ select, input[type=text], input[type=number] {
   .brand { gap: 4px; }
 }
 
+/* przełącznik chowania panelu bocznego (tylko szerokie ekrany) */
+.side-toggle { display: none; }
+
 /* tablet / desktop: paleta z boku, split 2D+3D */
 @media (min-width: 900px) {
   body { grid-template-columns: 1fr 340px; grid-template-rows: auto 1fr; grid-template-areas: "top top" "work side"; }
+  body.side-collapsed { grid-template-columns: 1fr 0; }
+  body.side-collapsed .palette { display: none; }
+  .side-toggle {
+    display: inline-flex; position: fixed; z-index: 15; top: calc(var(--topbar-h) + var(--sat) + 10px); right: calc(340px + var(--sar) - 1px);
+    width: 26px; height: 44px; padding: 0; border-radius: 10px 0 0 10px; border-right: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  body.side-collapsed .side-toggle { right: calc(var(--sar)); border-radius: 10px 0 0 10px; }
+  body.side-collapsed .side-toggle .ic { transform: rotate(180deg); }
   .topbar { grid-area: top; }
   .workspace { grid-area: work; }
   .palette { grid-area: side; border-top: 0; border-left: 1px solid var(--c-border); overflow: auto; padding-top: 12px; }
