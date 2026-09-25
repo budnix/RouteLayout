@@ -30,7 +30,13 @@ export class Layout {
 
   // ---- zdarzenia ----
   onChange(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
-  emit(kind = 'change') { this._portCache = null; for (const fn of this.listeners) fn(kind, this); }
+  emit(kind = 'change') {
+    this._portCache = null;
+    // każdy listener osobno: awaria jednego (np. WebGL) nie może przerwać operacji ani pozostałych
+    for (const fn of this.listeners) {
+      try { fn(kind, this); } catch (err) { console.error('listener', kind, err); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('routelayout:error', { detail: err })); }
+    }
+  }
 
   // ---- undo ----
   snapshot() { return JSON.stringify({ pieces: this.pieces, scenery: this.scenery, board: this.board, name: this.name }); }

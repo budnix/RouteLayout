@@ -8,6 +8,17 @@ import { SCENERY, SCENERY_GROUPS, sceneryName } from './scenery.js';
 
 const $ = (id) => document.getElementById(id);
 
+// ---- błędy: widoczny toast zamiast cichej awarii (iPad nie ma konsoli) ----
+let toastTimer = null;
+function toast(msg, ms = 8000) {
+  const el = $('toast'); el.textContent = msg; el.classList.remove('hidden');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.add('hidden'), ms);
+}
+const errMsg = (e) => (e && (e.message || e.reason?.message || String(e.reason || e))) || 'unknown';
+window.addEventListener('error', (e) => toast(t('error.generic', { msg: errMsg(e.error || e) + (e.filename ? ` @ ${e.filename.split('/').pop()}:${e.lineno}` : '') })));
+window.addEventListener('unhandledrejection', (e) => toast(t('error.generic', { msg: errMsg(e) })));
+window.addEventListener('routelayout:error', (e) => toast(t('error.generic', { msg: errMsg(e.detail) })));
+
 const layout = new Layout();
 const editor = new Editor2D($('canvas2d'), layout);
 const view3d = new View3D($('view3d'), layout);
@@ -143,10 +154,14 @@ $('btn-undo-stroke').addEventListener('click', () => editor.undoStroke());
 $('btn-clear-sketch').addEventListener('click', () => editor.clearSketch());
 $('btn-finish').addEventListener('click', finishDrawing);
 function finishDrawing() {
-  const result = fitStrokes(editor.strokes, layout, { normalize: fixPref.on });
+  editor.finishStroke();   // kreska w toku (brak pointerup) nie może przepaść
+  if (!editor.strokes.length) { toast(t('draw.empty'), 4000); return; }
+  let result;
+  try { result = fitStrokes(editor.strokes, layout, { normalize: fixPref.on }); }
+  catch (err) { console.error(err); toast(t('error.generic', { msg: errMsg(err) })); return; }
   window.__routelayout.lastFit = result;
   const { pieces } = result;
-  if (!pieces.length) { alert(t('draw.none')); return; }
+  if (!pieces.length) { toast(t('draw.none'), 5000); return; }
   const added = layout.addMany(pieces);
   editor.clearSketch();
   setDrawMode(false);
@@ -155,8 +170,7 @@ function finishDrawing() {
   editor.cursor = open ? { uid: editor.selected.uid, idx: open.idx } : null;
   editor.emit('select'); editor.emit('cursor'); editor.draw();
 }
-editor.on((kind) => { if (kind === 'sketch') $('btn-finish').disabled = !editor.strokes.length; });
-$('btn-finish').disabled = true;
+// przycisk zawsze aktywny – brak kresek tłumaczy toast, a nie martwy przycisk
 
 // ---- narzędzia zaznaczenia -------------------------------------------------
 $('btn-rot-l').addEventListener('click', () => editor.rotateSelected(-15));

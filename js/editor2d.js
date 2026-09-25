@@ -117,6 +117,17 @@ export class Editor2D {
     return piece;
   }
 
+  /** Domyka bieżącą kreskę (np. gdy pointerup nie dotarł) i dodaje ją do szkicu. */
+  finishStroke() {
+    if (!this.stroke) return;
+    if (this.stroke.length > 3) {
+      let fixed = null;
+      try { fixed = this.normalizer ? this.normalizer(this.stroke) : null; } catch (err) { console.error('normalize', err); }
+      this.strokes.push(fixed && fixed.length > 1 ? fixed : this.stroke);
+    }
+    this.stroke = null; this.drag = null; this.pointers.clear();
+    this.draw(); this.emit('sketch');
+  }
   setMode(mode) { this.mode = mode; this.stroke = null; this.draw(); this.emit('mode'); }
   clearSketch() { this.strokes = []; this.stroke = null; this.draw(); this.emit('sketch'); }
   undoStroke() { this.strokes.pop(); this.draw(); this.emit('sketch'); }
@@ -210,7 +221,9 @@ export class Editor2D {
     if (!d) return;
     if (d.draw) {
       if (this.stroke && this.stroke.length > 3) {
-        const fixed = this.normalizer ? this.normalizer(this.stroke) : null;
+        let fixed = null;
+        try { fixed = this.normalizer ? this.normalizer(this.stroke) : null; }
+        catch (err) { console.error('normalize', err); window.dispatchEvent(new CustomEvent('routelayout:error', { detail: err })); }
         this.strokes.push(fixed && fixed.length > 1 ? fixed : this.stroke);
         this.emit('sketch');
       }

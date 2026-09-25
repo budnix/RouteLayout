@@ -134,6 +134,13 @@ input[type=color] { width: 56px; min-height: 40px; padding: 2px 4px; border: 1px
 .swatches button { width: 32px; height: 32px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--c-border); }
 .swatches button.active { border-color: var(--c-accent); box-shadow: 0 0 0 2px var(--c-accent); }
 
+.toast {
+  position: fixed; left: 50%; bottom: calc(var(--palette-h) + var(--sab) + 12px); transform: translateX(-50%); z-index: 30;
+  max-width: min(92vw, 560px); padding: 10px 14px; border-radius: 12px; background: #b3261e; color: #fff; font-size: 13px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3); -webkit-user-select: text; user-select: text;
+}
+@media (min-width: 900px) { .toast { bottom: 20px; } }
+
 /* arkusz menu */
 .sheet { position: fixed; inset: 0; z-index: 20; }
 .sheet-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.4); }

@@ -287,8 +287,8 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     return { n: st.length, straightLen, dy: Math.abs(y1 - y0) };
   });
   check(live.n < 30 && live.straightLen > 200 && live.dy < 0.01, `normalizacja na żywo: kreska → prosta ${live.straightLen.toFixed(0)} mm + łuk (${live.n} pkt)`);
-  const nStrokes = await page.evaluate(() => document.getElementById('btn-finish').disabled);
-  check(nStrokes === false, 'rysowanie: kreska zarejestrowana');
+  const nStrokes = await page.evaluate(() => window.__routelayout.editor.strokes.length);
+  check(nStrokes === 1, 'rysowanie: kreska zarejestrowana');
   await page.click('#btn-finish');
   const fitted = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces);
   check(fitted.length >= 3 && fitted.some((p) => p.id.startsWith('5521')), 'rysowanie: szkic zamieniony na proste i łuki');
