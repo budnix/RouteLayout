@@ -63,6 +63,27 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     page.on('console', (m) => { if (m.type() === 'error') errors.push(`${tag} console: ${m.text()}`); });
   };
 
+  // normalizacja: tolerancja na drżenie vs. prawdziwy S-kształt
+  {
+    const { normalizeStroke } = await import('../js/fitter.js');
+    const { prepareStroke } = await import('../js/fitter.js');
+    const { segment } = await import('../js/normalize.js');
+    // 1) prosta 900 mm z silnym drżeniem ±14 mm (okres ~270 mm) -> jedna prosta
+    const wob = []; for (let x = 0; x <= 900; x += 5) wob.push([100 + x, 500 + 14 * Math.sin(x / 43)]);
+    const primsW = segment(prepareStroke(wob));
+    check(primsW.length === 1 && primsW[0].type === 'line', `normalizacja: drżenie ±14 mm → jedna prosta (${primsW.map((p) => p.type).join(',')})`);
+    // 2) S-kształt: R2 30° w lewo + R2 30° w prawo (przesunięcie równoległe 113 mm) -> dwa łuki, nie prosta
+    const R = 421.88, sc = [];
+    for (let a = 0; a <= 30; a += 1) sc.push([100 + R * Math.sin(a * Math.PI / 180), 500 + R * (1 - Math.cos(a * Math.PI / 180))]);
+    const [ex, ey] = sc[sc.length - 1];
+    for (let a = 1; a <= 30; a += 1) { const b = (30 - a) * Math.PI / 180; sc.push([ex + R * (Math.sin(30 * Math.PI / 180) - Math.sin(b)), ey + R * (Math.cos(b) - Math.cos(30 * Math.PI / 180))]); }
+    const primsS = segment(prepareStroke(sc));
+    const arcsS = primsS.filter((p) => p.type === 'arc');
+    check(arcsS.length === 2 && arcsS[0].dir !== arcsS[1].dir, `normalizacja: S z 2 × R2 30° zostaje dwoma łukami (${primsS.map((p) => p.type + (p.dir || '')).join(',')})`);
+    const live = normalizeStroke(wob, new Layout());
+    check(live && live.length === 2, 'normalizacja na żywo: drżąca prosta → 2 punkty');
+  }
+
   // obrotnica + wysokości (model, Node)
   {
     const L = new Layout();

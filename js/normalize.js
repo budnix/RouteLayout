@@ -20,6 +20,7 @@ const K_CURVE = 1 / 1300;        // powyżej → łuk (histereza)
 const MIN_SEG = 90;              // krótsze segmenty scalamy z sąsiadem [mm]
 const MIN_STRAIGHT = 25;         // krótszą prostą pomijamy [mm]
 const MIN_SWEEP = 12;            // łuk o mniejszym kącie traktujemy jako prostą [°]
+const R_MIN_REAL = RAD.R1 * 0.8; // łuk ciaśniejszy niż 80% R1 nie istnieje w palecie → to drżenie, nie zamiar
 
 // promienie katalogowe i elementy łukowe dla nich: [id, kąt]
 const RADII = [
@@ -40,7 +41,8 @@ const TURNOUT_LEN = BY_ID['55220'].len ?? 239.07;
  * @param {number} step odstęp próbek [mm]
  * @returns prymitywy [{type:'line', i0,i1, a}, {type:'arc', i0,i1, r, dir, cx, cy}]
  */
-export function segment(stroke, step = 5) {
+export function segment(stroke, step = 5, debug = false) {
+  const dbg = (label, prims) => { if (debug) console.log('  [' + label + ']', prims.map((p) => `${p.type}${p.dir || ''}[${p.i0}-${p.i1}]` + (p.type === 'arc' ? ` r=${p.r.toFixed(0)}` : ` a=${p.a.toFixed(1)}`)).join(' ')); };
   const { pts, tan } = stroke;
   const n = pts.length;
   if (n < 2 * CURV_WIN + 2) return [{ type: 'line', i0: 0, i1: n - 1, a: tan[0] }];
@@ -83,10 +85,18 @@ export function segment(stroke, step = 5) {
   }
   // dopasowanie geometrii; łuk o łącznym kącie < MIN_SWEEP to w intencji prosta (drżenie ręki)
   let prims = segs.map((g) => {
-    if (g.c !== 0) { let acc = 0; for (let j = g.i0; j < g.i1; j++) acc += norm(tan[j + 1] - tan[j]); if (Math.abs(acc) < MIN_SWEEP) g.c = 0; }
-    return fitPrim(pts, g.i0, g.i1, g.c);
+    if (g.c !== 0) { let acc = 0; for (let j = g.i0; j < g.i1; j++) acc += norm(tan[j + 1] - tan[j]); if (Math.abs(acc) < MIN_SWEEP) g.c = 0; g.acc = acc; }
+    const p = fitPrim(pts, g.i0, g.i1, g.c);
+    // łuk ciaśniejszy niż paleta i krótki kątowo to drżenie ręki → prosta;
+    // długi ciasny łuk (≥ 45°) to zamiar "jak najciaśniej" → zostaje i trafi w R1
+    if (p.type === 'arc' && p.r < R_MIN_REAL && Math.abs(g.acc) < 45) return fitPrim(pts, g.i0, g.i1, 0);
+    return p;
   });
+  dbg('fit', prims);
   prims = mergePrims(pts, prims, step);
+  dbg('merge', prims);
+  prims = collapseWobble(pts, tan, prims, step, debug);
+  dbg('collapse', prims);
   // dopracowanie granic: przesuń granicę tam, gdzie suma reszt do obu modeli jest najmniejsza
   for (let pass = 0; pass < 2; pass++) {
     for (let i = 0; i + 1 < prims.length; i++) {
@@ -118,6 +128,63 @@ export function segment(stroke, step = 5) {
     prims = mergePrims(pts, prims, step);
   }
   return prims;
+}
+
+/**
+ * Drżenie ręki: ciąg naprzemiennych łuków (z ewentualnymi krótkimi prostymi),
+ * którego sumaryczny obrót jest mały, a punkty leżą blisko jednej prostej,
+ * to w intencji prosta. Prawdziwy S-kształt (np. 2 × R2 30°) ma zbyt dużą
+ * odległość od prostej i zostaje.
+ */
+function collapseWobble(pts, tan, prims, step, debug = false) {
+  const sweepOf = (p) => { let a = 0; for (let j = p.i0; j < p.i1; j++) a += norm(tan[j + 1] - tan[j]); return a; };
+  const lenOf = (p) => (p.i1 - p.i0) * step;
+  const isRefLine = (p) => p && p.type === 'line' && lenOf(p) >= 150;
+  let cur = prims.slice();
+  for (let pass = 0; pass < 6; pass++) {
+    let changed = false;
+    const out = [];
+    let i = 0;
+    while (i < cur.length) {
+      let best = null;
+      for (let j = i + 1; j < cur.length; j++) {
+        const run = cur.slice(i, j + 1);
+        const arcs = run.filter((p) => p.type === 'arc');
+        if (arcs.some((p) => Math.abs(sweepOf(p)) > 60)) break;
+        if (arcs.length < 2) continue;
+        const net = arcs.reduce((a, p) => a + sweepOf(p), 0);
+        if (Math.abs(net) > 20) continue;
+        const i0 = run[0].i0, i1 = run[run.length - 1].i1;
+        const P = pts.slice(i0, i1 + 1);
+        const model = { type: 'line', ...lineModel(P) };
+        const len = (i1 - i0) * step;
+        let maxR = 0; for (const q of P) maxR = Math.max(maxR, resid(model, q));
+        // odniesienie: sąsiednia prosta (już wyprodukowana przed ciągiem lub następna po nim)
+        const prev = out[out.length - 1], next = cur[j + 1];
+        const ref = isRefLine(prev) ? prev.a : isRefLine(next) ? next.a : null;
+        const dirOk = ref !== null ? Math.abs(norm(model.a - ref)) <= 6 : arcs.length >= 3;
+        if (debug) console.log(`    run ${i}-${j} arcs=${arcs.length} net=${net.toFixed(1)} maxR=${maxR.toFixed(1)} len=${len.toFixed(0)} line=${model.a.toFixed(1)} ref=${ref === null ? '-' : ref.toFixed(1)} dirOk=${dirOk}`);
+        if (maxR > Math.max(30, 0.06 * len) || !dirOk) continue;
+        best = j;
+      }
+      if (best !== null) { out.push(fitPrim(pts, cur[i].i0, cur[best].i1, 0)); i = best + 1; changed = true; }
+      else { out.push(cur[i]); i++; }
+    }
+    cur = mergePrims(pts, out, step);
+    // samotny krótki łuk obok długiej prostej (ogon drżenia): w całości ≤ 20 mm od jej przedłużenia → prosta.
+    // Przeciwłuk R9 15° kończy 31 mm od przedłużenia – zostaje.
+    for (let k = 0; k < cur.length; k++) {
+      const p = cur[k];
+      if (p.type !== 'arc' || Math.abs(sweepOf(p)) > 45 || lenOf(p) > 200) continue;
+      const nb = [cur[k - 1], cur[k + 1]].filter(isRefLine);
+      if (!nb.some((line) => pts.slice(p.i0, p.i1 + 1).every((q) => resid(line, q) <= 20))) continue;
+      cur[k] = fitPrim(pts, p.i0, p.i1, 0);
+      cur = mergePrims(pts, cur, step);
+      changed = true; k = -1;
+    }
+    if (!changed) break;
+  }
+  return cur;
 }
 
 /** Scala prymitywy krótsze niż MIN_SEG z dłuższym sąsiadem oraz sąsiadów tego samego typu i kierunku. */
