@@ -113,6 +113,12 @@ export class Layout {
   }
   rotate(piece, deg) { this.move(piece, piece.x, piece.y, piece.rot + deg); }
   clear() { this.pushUndo(); this.pieces = []; this.emit('change'); }
+  /** Nowy układ: elementy, nazwa i blat od zera; historia undo wyczyszczona. */
+  reset(name) {
+    this.pieces = []; this.board = { w: 2000, h: 1000 }; this.name = name;
+    this.undoStack.length = 0; this.redoStack.length = 0;
+    this.emit('change');
+  }
   setBoard(w, h) { this.pushUndo(); this.board = { w, h }; this.emit('change'); }
 
   /**

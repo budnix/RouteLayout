@@ -72,6 +72,13 @@ function setMode(m) {
 $('tab-2d').addEventListener('click', () => setMode('2d'));
 $('tab-3d').addEventListener('click', () => setMode('3d'));
 $('tab-split').addEventListener('click', () => setMode('split'));
+$('btn-new').addEventListener('click', () => {
+  if (!layout.pieces.length || confirm(t('confirm.new'))) {
+    editor.selected = null; editor.cursor = null;
+    layout.reset(t('default.name'));
+    editor.emit('select'); editor.fit();
+  }
+});
 $('btn-undo').addEventListener('click', () => layout.undo());
 $('btn-redo').addEventListener('click', () => layout.redo());
 
@@ -161,8 +168,8 @@ applyDom();
 
 // ---- start -----------------------------------------------------------------
 layout.onChange((kind) => { if (kind === 'change') layout.save(); });
-if (!Layout.loadSaved(layout)) layout.name = t('default.name');
-if (!layout.pieces.length) demo();
+// demo tylko przy pierwszym uruchomieniu (brak zapisu); pusty zapisany układ zostaje pusty
+if (!Layout.loadSaved(layout)) { layout.name = t('default.name'); demo(); layout.save(); }
 editor.fit();
 setMode((() => { try { return localStorage.getItem('routelayout.mode') || (innerWidth >= 900 ? 'split' : '2d'); } catch { return '2d'; } })());
 view3d.fit();

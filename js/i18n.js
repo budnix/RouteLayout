@@ -7,6 +7,7 @@ const DICT = {
   pl: {
     'app.title': 'RouteLayout – makiety H0 (PIKO A-Gleis)',
     'app.description': 'Planer układów torów H0 na torach PIKO A-Gleis z podglądem 3D. Działa na iPadzie i iPhonie.',
+    'top.new': 'Nowy układ', 'confirm.new': 'Zacząć od zera? Bieżący układ zostanie usunięty (możesz go wcześniej wyeksportować do JSON).',
     'top.undo': 'Cofnij (Ctrl+Z)', 'top.redo': 'Ponów (Ctrl+Y)', 'top.menu': 'Menu',
     'hud.fit': 'Dopasuj widok', 'hud.fit3d': 'Dopasuj kamerę',
     'sel.rotl': 'Obróć −15°', 'sel.rotr': 'Obróć +15°', 'sel.del': 'Usuń',
@@ -31,6 +32,7 @@ const DICT = {
   en: {
     'app.title': 'RouteLayout – H0 track planner (PIKO A-Gleis)',
     'app.description': 'H0 model railway track planner for PIKO A-Gleis with 3D preview. Works on iPad and iPhone.',
+    'top.new': 'New layout', 'confirm.new': 'Start from scratch? The current layout will be deleted (you can export it to JSON first).',
     'top.undo': 'Undo (Ctrl+Z)', 'top.redo': 'Redo (Ctrl+Y)', 'top.menu': 'Menu',
     'hud.fit': 'Fit view', 'hud.fit3d': 'Fit camera',
     'sel.rotl': 'Rotate −15°', 'sel.rotr': 'Rotate +15°', 'sel.del': 'Delete',
@@ -55,6 +57,7 @@ const DICT = {
   de: {
     'app.title': 'RouteLayout – H0-Gleisplaner (PIKO A-Gleis)',
     'app.description': 'Gleisplaner für Modellbahn H0 mit PIKO A-Gleis und 3D-Vorschau. Läuft auf iPad und iPhone.',
+    'top.new': 'Neue Anlage', 'confirm.new': 'Von vorn beginnen? Die aktuelle Anlage wird gelöscht (vorher als JSON exportierbar).',
     'top.undo': 'Rückgängig (Strg+Z)', 'top.redo': 'Wiederholen (Strg+Y)', 'top.menu': 'Menü',
     'hud.fit': 'Ansicht anpassen', 'hud.fit3d': 'Kamera anpassen',
     'sel.rotl': 'Drehen −15°', 'sel.rotr': 'Drehen +15°', 'sel.del': 'Löschen',

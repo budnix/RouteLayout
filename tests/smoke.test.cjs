@@ -95,6 +95,14 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   const afterUndo = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces.length);
   check(afterUndo === 2, 'undo: przywraca stan sprzed importu (2 elementy)');
 
+  // nowy układ: przycisk czyści wszystko, a po przeładowaniu demo NIE wraca
+  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); });
+  const afterNew = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces.length);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(500);
+  const afterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces.length);
+  check(afterNew === 0 && afterReload === 0, 'nowy układ: pusty i pozostaje pusty po przeładowaniu');
+
   // i18n: przełączenie na DE zmienia teksty UI i nazwy w katalogu
   const de = await page.evaluate(() => {
     const sel = document.getElementById('sel-lang'); sel.value = 'de'; sel.dispatchEvent(new Event('change'));
