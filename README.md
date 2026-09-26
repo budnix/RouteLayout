@@ -116,6 +116,10 @@ npm test            # smoke test in headless Chromium, screenshots in test-resul
 
 Track pieces: `x, y` in mm (piece origin = port 0), `rot` in degrees, optional `z` (start height, mm) and `dz` (rise over the piece). A turntable (`id: "TT"`) has `x, y` at its centre plus `r`, `bridge` (angle) and `angles` (rim connections). Scenery: `x, y` is the object centre, `w` runs along its local X axis, `h` across. Version 1 files (without `scenery`) still load.
 
+## For AI coding agents
+
+`AGENTS.md` documents the architecture, coordinate conventions, the sketch-normalisation rules and the testing/CI traps. Read it before making changes.
+
 ## Contributing
 
 Issues and pull requests are welcome — especially geometry corrections, new track systems and iOS quirks.
