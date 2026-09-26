@@ -1,9 +1,10 @@
 import { CATALOG, BY_ID, sampleSegment } from './catalog.js';
-import { Layout } from './layout.js';
+import { Layout, norm } from './layout.js';
 import { Editor2D } from './editor2d.js';
 import { View3D } from './view3d.js';
 import { t, pieceName, applyDom, setLang, getLang, LANGS } from './i18n.js';
 import { fitStrokes, normalizeStroke } from './fitter.js';
+import { closeGap, pickPartner } from './closer.js';
 import { SCENERY, SCENERY_GROUPS, sceneryName, drawScenery2D } from './scenery.js';
 
 const $ = (id) => document.getElementById(id);
@@ -165,7 +166,7 @@ $('btn-zoom-out').addEventListener('click', () => editor.zoomAt(editor.canvas.cl
 $('btn-fit3d').addEventListener('click', () => view3d.fit());
 
 // hak diagnostyczny (testy, konsola)
-window.__routelayout = { layout, editor, view3d, insert };
+window.__routelayout = { layout, editor, view3d, insert, closeFromCursor };
 
 // ---- tryb rysowania ----------------------------------------------------------
 const gridPrefs = (() => { try { return JSON.parse(localStorage.getItem('routelayout.grid')) || {}; } catch { return {}; } })();
@@ -210,12 +211,45 @@ function finishDrawing() {
   const added = layout.addMany(pieces);
   editor.clearSketch();
   setDrawMode(false);
+  autoClose(added);
   editor.selected = added[added.length - 1];
   const open = layout.openPorts().find((p) => p.piece === editor.selected);
   editor.cursor = open ? { uid: editor.selected.uid, idx: open.idx } : null;
   editor.emit('select'); editor.emit('cursor'); editor.draw();
 }
 // przycisk zawsze aktywny – brak kresek tłumaczy toast, a nie martwy przycisk
+
+// ---- domykanie pętli ----------------------------------------------------------
+const listIds = (pieces) => pieces.map((p) => BY_ID[p.id].code).join(' + ');
+function closeFromCursor() {
+  const A = editor.cursorPort();
+  if (!A) return;
+  const B = pickPartner(layout, A);
+  if (!B) { toast(t('close.noPartner'), 5000); return; }
+  const r = closeGap(A, B);
+  if (!r.ok) { toast(t('close.fail', { d: r.error.d.toFixed(1), da: r.error.da.toFixed(1) }), 8000); return; }
+  layout.addMany(r.pieces);
+  editor.cursor = null; editor.selected = null; editor.emit('select'); editor.emit('cursor'); editor.draw();
+  toast(t('close.ok', { list: listIds(r.pieces), d: r.error.d.toFixed(2) }), 5000);
+}
+$('btn-close').addEventListener('click', closeFromCursor);
+editor.on((kind) => { if (kind === 'cursor' || kind === 'mode') $('btn-close').classList.toggle('hidden', !editor.cursorPort() || editor.mode === 'draw'); });
+layout.onChange(() => $('btn-close').classList.toggle('hidden', !editor.cursorPort() || editor.mode === 'draw'));
+
+/** Po szkicu: jeśli dwa otwarte końce nowych elementów są blisko i naprzeciw – domknij. */
+function autoClose(added) {
+  const set = new Set(added);
+  const open = layout.openPorts().filter((p) => set.has(p.piece));
+  for (let i = 0; i < open.length; i++) for (let j = 0; j < open.length; j++) {
+    if (i === j) continue;
+    const A = open[i], B = open[j];
+    const d = Math.hypot(A.x - B.x, A.y - B.y);
+    if (d > 320 || Math.abs(norm(A.a - B.a + 180)) > 70) continue;
+    const r = closeGap(A, B);
+    if (r.ok) { layout.addMany(r.pieces); toast(t('close.auto', { list: listIds(r.pieces) }), 5000); return true; }
+  }
+  return false;
+}
 
 // ---- narzędzia zaznaczenia -------------------------------------------------
 $('btn-rot-l').addEventListener('click', () => editor.rotateSelected(-15));

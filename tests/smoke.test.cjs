@@ -155,6 +155,28 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     check(pa.length === 3 && pa[1].type === 'arc' && pa[1].radius.r === 421.88 && pa[1].sweep === 30 && pa[1].dir === -1, 'brzeg: R2 30° w prawo z szumem → R2 30° w prawo (' + JSON.stringify(pa.map((p) => p.type === 'arc' ? [p.radius.r, p.sweep, p.dir] : Math.round(p.L))) + ')');
   }
 
+  // ---- domykanie pętli (solver, Node) ----
+  {
+    const { closeGap, pickPartner } = await import('../js/closer.js');
+    const oval = (chain) => { const L = new Layout(); let p = L.add('55200', { x: 300, y: 300, rot: 0 }); let cur = L.portOf(p, 1); for (const id of chain) { p = L.attach(id, 0, cur); cur = L.portOf(p, 1); } return { L, cur }; };
+    const R6 = ['55212', '55212', '55212', '55212', '55212', '55212'];
+    const { L, cur } = oval(['55200', ...R6, '55200', '55200', '55200', ...R6]);   // brakuje jednej G239
+    const B = pickPartner(L, cur);
+    const r = closeGap(cur, B);
+    check(B && r.ok && r.pieces.length === 1 && r.pieces[0].id === '55200' && r.error.d < 0.01, 'domykanie: owal bez jednej prostej → G239 (' + JSON.stringify(r.pieces.map((p) => p.id)) + ')');
+    L.addMany(r.pieces);
+    check(L.openPorts().length === 0, 'domykanie: po dodaniu owal bez otwartych końców');
+    const two = (dx, dy) => { const M = new Layout(); const a = M.add('55200', { x: 0, y: 0, rot: 0 }); const b = M.add('55200', { x: 239.07 + dx, y: dy, rot: 0 }); return closeGap(M.portOf(a, 1), M.portOf(b, 0)); };
+    const r2 = two(358.61, 0);
+    check(r2.ok && r2.pieces.map((p) => p.id).sort().join() === '55200,55202', 'domykanie: szczelina 358,61 mm → G239 + G119');
+    const r3 = two(2 * 907.97 * Math.sin(15 * Math.PI / 180), 61.88);
+    check(r3.ok && r3.pieces.length === 2 && r3.pieces.every((p) => p.id === '55219'), 'domykanie: przesunięcie równoległe 61,88 mm → R9 + R9');
+    const r4 = two(100, 0);
+    check(!r4.ok && r4.error.d > 5 && r4.error.d < 10, `domykanie: 100 mm nie do zrobienia (najlepiej ${r4.error.d.toFixed(1)} mm obok)`);
+    const r5 = two(3 * 239.07 + 30.94, 0);
+    check(r5.ok && r5.pieces.length === 4 && r5.pieces.filter((p) => p.id === '55200').length === 3 && r5.pieces.some((p) => p.id === '55206'), 'domykanie: 748 mm → 3×G239 + G31 (4 elementy) (' + r5.pieces.map((p) => p.id).join(',') + ')');
+  }
+
   // obrotnica + wysokości (model, Node)
   {
     const L = new Layout();
@@ -388,6 +410,14 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   const scen1 = await page.evaluate(() => window.__routelayout.layout.scenery.length);
   check(scen1 === 1, 'paleta: zakładka Sceneria wstawia obiekt z listy');
   await page.evaluate(() => document.querySelector('#pal-tabs button[data-tab="piko"]').click());
+
+  // domykanie w UI: owal bez jednej prostej, przycisk „Domknij” przy aktywnym końcu
+  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); const { insert, editor, layout } = window.__routelayout; const first = insert('55200'); editor.cursor = { uid: first.uid, idx: 1 };
+    for (const id of ['55200', '55212', '55212', '55212', '55212', '55212', '55212', '55200', '55200', '55200', '55212', '55212', '55212', '55212', '55212', '55212']) insert(id); void layout; });
+  const closeVisible = await page.evaluate(() => !document.getElementById('btn-close').classList.contains('hidden'));
+  await page.click('#btn-close'); await page.waitForTimeout(200);
+  const closed = await page.evaluate(() => ({ open: window.__routelayout.layout.openPorts().length, n: window.__routelayout.layout.pieces.length, toast: document.getElementById('toast').textContent }));
+  check(closeVisible && closed.open === 0 && closed.n === 18, `domykanie UI: przycisk widoczny, owal domknięty (${closed.toast})`);
 
   // i18n: przełączenie na DE zmienia teksty UI i nazwy w katalogu
   const de = await page.evaluate(() => {

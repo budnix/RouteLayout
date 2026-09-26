@@ -34,6 +34,7 @@ Reviewers: a PR that changes any of the above without touching `AGENTS.md` is in
 | `js/editor2d.js` | Canvas 2D editor: pan/zoom/pinch, drag, select, cursor (active open end), sketch mode, rendering. |
 | `js/fitter.js` | Sketch → pieces. `prepareStroke`, greedy fitter (`fitGreedy`), normalised pipeline (`fitNormalized`), `fitStrokes` (entry), `normalizeStroke` (live, on pointer-up), turnout placement, attachment to open ends. |
 | `js/normalize.js` | Stroke → primitives (line/arc): curvature segmentation, circle/line fits, boundary refinement at the tangent point, wobble collapsing, snapping to the PIKO grid, `idealPath`, DP decomposition of straights, `chain`. |
+| `js/closer.js` | Loop closing: `closeGap(portA, portB)` searches 1–4 catalog pieces (straights + curves both ways) whose chain from A lands on B within 1.5 mm / 1.5°; exactness is a hard priority, piece count and "small pieces" only break ties; otherwise reports the best miss ("7.3 mm off"). `pickPartner` chooses the open end facing the cursor. Used by the HUD link button and `autoClose` after a sketch. |
 | `js/scenery.js` | Scenery catalog (trees, buildings, roads, pond, hill…): 2D drawing + procedural 3D builders. `bumpGeometry` (hill / pond bowl). |
 | `js/view3d.js` | three.js scene: baseboard (top plate with pond holes), rails/sleepers/ballast ribbons following heights, piers, turntable pit, scenery. Renders on demand. |
 | `js/main.js` | UI wiring: palette, selection bar, menu, sketch bar, language, side panel, toasts. Exposes `window.__routelayout = { layout, editor, view3d, insert }` for tests and the console. |
@@ -113,7 +114,7 @@ npm test                            # tests/smoke.test.cjs; screenshots in test-
 
 ## Known limitations / natural next steps
 
-- Sketch fitting does not close loops: a drawn oval leaves a small gap where the discrete pieces do not meet. Closing needs a constrained choice of the last 2–3 pieces.
+- Loop closing (`closer.js`) tries up to 4 pieces; gaps needing more (or a curve rearrangement) report the best miss and leave it to the user.
 - Only WL/WR turnouts are inferred from sketches (curved turnouts, DKW, Y are not).
 - Heights have no clearance check (a track 30 mm above another is accepted; H0 needs ~55–60 mm).
 - The turntable is generic (`TT`, adjustable ⌀), not a PIKO article; the bill of materials lists it as `TT`.

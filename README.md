@@ -13,6 +13,7 @@ A web app (HTML5, ES modules, Canvas 2D + three.js) for designing H0 model railw
 - Complete **PIKO A-Gleis H0** catalog (552xx series) with exact geometry: straights, curves R1–R4 / R9, 7.5° curves, standard, curved, three-way and Y turnouts, double slip, crossings, flex track, buffer stop
 - **Auto-drawing**: pick a piece, tap *Insert* — it snaps onto the active open track end at the correct angle. Tap any open end (e.g. a turnout branch) to continue from there
 - **Sketch mode**: draw the track path freehand with a finger or mouse, press *Finish drawing* and the app fits real PIKO pieces to it — straights, curves and turnouts where a second stroke branches off. Optional guide grid with configurable spacing
+- **Loop closing**: with the active end selected, the link button finds the 1–4 catalog pieces that close the gap to the facing open end exactly (or tells you how many millimetres are missing); a sketched oval is closed automatically
 - Drag pieces with a finger or mouse; nearby track ends snap together
 - **3D preview** with rails (16.5 mm gauge), sleepers, ballast, baseboard and shadows — rendered on demand to save battery
 - **Turntable** as a track element: tap anywhere on the rim to create a connection there (1° steps), drag a track onto the rim and it snaps radially, rotate the bridge, set the diameter
