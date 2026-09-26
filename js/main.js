@@ -7,6 +7,7 @@ import { fitStrokes, normalizeStroke } from './fitter.js';
 import { closeGap, pickPartner } from './closer.js';
 import { checkLayout } from './checks.js';
 import { Train, toggleSwitch } from './train.js';
+import { printLayout, buildPrintView, removePrintView } from './print.js';
 import { SCENERY, SCENERY_GROUPS, sceneryName, drawScenery2D } from './scenery.js';
 
 const $ = (id) => document.getElementById(id);
@@ -255,7 +256,7 @@ function centerOn(x, y) {
 // ---- jazda próbna ---------------------------------------------------------------------
 const train = new Train(layout);
 editor.train = train;
-Object.assign(window.__routelayout, { train, setTrainMode });
+Object.assign(window.__routelayout, { train, setTrainMode, buildPrintView, removePrintView, shoppingList: () => shoppingList() });
 let trainRaf = null, trainLast = 0;
 function trainFrame(ts) {
   trainRaf = requestAnimationFrame(trainFrame);
@@ -383,13 +384,41 @@ function refreshMenu() {
   $('swatches').querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.color === (layout.board.color || '#5f8f4a')));
   const bom = $('bom');
   bom.innerHTML = '';
-  for (const { id, n, def } of layout.bom()) {
-    bom.insertAdjacentHTML('beforeend', `<span class="n">${n} ×</span><span class="id">${id}</span><span>${def.code} — ${pieceName(def)}</span>`);
+  const rows = layout.bom();
+  if (rows.length) bom.insertAdjacentHTML('beforeend', `<span class="head">${t('bom.need')}</span><span class="head"></span><span class="head"></span><span class="head">${t('bom.have')}</span><span class="head">${t('bom.buy')}</span>`);
+  let toBuy = 0;
+  for (const { id, n, def } of rows) {
+    const have = haveOf(id), buy = Math.max(0, n - have); toBuy += buy;
+    bom.insertAdjacentHTML('beforeend', `<span class="n">${n} ×</span><span class="id">${id}</span><span>${def.code} — ${pieceName(def)}</span><input class="have" type="number" min="0" step="1" value="${have}" data-id="${id}"><span class="buy${buy ? '' : ' ok'}">${buy ? buy + ' ×' : '✓'}</span>`);
   }
   const total = layout.totalLength();
   bom.insertAdjacentHTML('beforeend', `<div class="total">${t('bom.total', { n: layout.pieces.length, m: (total / 1000).toFixed(2) })}</div>`);
+  $('to-buy').textContent = rows.length ? (toBuy ? t('bom.toBuy', { n: toBuy }) : t('bom.complete')) : '';
 }
 $('in-name').addEventListener('change', (e) => { layout.name = e.target.value; layout.save(); });
+
+// ---- lista zakupów: ile mam ----
+const haveMap = (() => { try { return JSON.parse(localStorage.getItem('routelayout.have')) || {}; } catch { return {}; } })();
+const haveOf = (id) => Math.max(0, Math.floor(+haveMap[id] || 0));
+$('bom').addEventListener('change', (e) => {
+  const inp = e.target.closest('input.have'); if (!inp) return;
+  haveMap[inp.dataset.id] = Math.max(0, Math.floor(+inp.value || 0));
+  try { localStorage.setItem('routelayout.have', JSON.stringify(haveMap)); } catch { /* ignoruj */ }
+  refreshMenu();
+});
+function shoppingList() {
+  return layout.bom().map(({ id, n, def }) => { const buy = Math.max(0, n - haveOf(id)); return buy ? `${buy} × ${id} ${def.code} — ${pieceName(def)}` : null; }).filter(Boolean).join('\n');
+}
+$('btn-copy-list').addEventListener('click', async () => {
+  const text = shoppingList() || t('bom.complete');
+  try { await navigator.clipboard.writeText(text); toast(t('bom.copied'), 3000); }
+  catch { window.prompt(t('menu.copyList'), text); }
+});
+
+// ---- druk ----
+const printLabels = () => ({ tile: t('print.tile'), scale: t('print.scale') });
+$('btn-print-tiles').addEventListener('click', () => { menu.classList.add('hidden'); printLayout(layout, 'tiles', printLabels()); });
+$('btn-print-page').addEventListener('click', () => { menu.classList.add('hidden'); printLayout(layout, 'page', printLabels()); });
 $('in-board-color').addEventListener('input', (e) => { layout.setBoardColor(e.target.value); refreshMenu(); });
 $('swatches').addEventListener('click', (e) => { const b = e.target.closest('button[data-color]'); if (b) { layout.setBoardColor(b.dataset.color); refreshMenu(); } });
 $('btn-board').addEventListener('click', () => layout.setBoard(Math.max(200, +$('in-w').value || 2000), Math.max(200, +$('in-h').value || 1000)));

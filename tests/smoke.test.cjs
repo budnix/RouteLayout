@@ -495,6 +495,40 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.click('#btn-train');
   check(t0.mode === 'train' && t0.bar && t1.x > t0.x + 30 && t1.running && t1.meshes === 3 && sw === 1, `jazda UI: start x ${t0.x.toFixed(0)} → ${t1.x.toFixed(0)}, ${t1.meshes} bryły w 3D, rozjazd przełożony (sw=${sw})`);
 
+  // druk: kafelki 1:1 (2000×1000 → 11×4 = 44 stron A4) i cały plan na jednej stronie
+  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); const { insert, editor } = window.__routelayout; const a = insert('55200'); editor.cursor = { uid: a.uid, idx: 1 }; for (const id of ['55200', '55212', '55212']) insert(id); });
+  const pr = await page.evaluate(() => {
+    const { buildPrintView, removePrintView, layout } = window.__routelayout;
+    const tiles = buildPrintView(layout, 'tiles', { tile: 'kafelek' });
+    const first = tiles.querySelector('canvas');
+    const res = { pages: tiles.querySelectorAll('.page').length, cssW: first.style.width, cssH: first.style.height, pxW: first.width, title: tiles.querySelector('.page-title').textContent };
+    // piksel toru na pierwszym kafelku: tor zaczyna się na środku widoku → sprawdź, że kafelek zawierający tor ma ciemne piksele szyn
+    const p0 = layout.pieces[0]; const col = Math.floor(p0.x / 190), row = Math.floor(p0.y / 277);
+    const idx = row * Math.ceil(layout.board.w / 190) + col; const c = tiles.querySelectorAll('canvas')[idx];
+    const g = c.getContext('2d'); const d = g.getImageData(0, 0, c.width, c.height).data; let dark = 0; for (let i = 0; i < d.length; i += 4) if (d[i] < 110 && d[i + 1] < 110 && d[i + 2] < 110) dark++;
+    res.darkPx = dark;
+    removePrintView();
+    const one = buildPrintView(layout, 'page', { scale: 'skala' });
+    res.onePage = one.querySelectorAll('.page').length; res.oneCss = one.querySelector('canvas').style.width; res.oneTitle = one.querySelector('.page-title').textContent;
+    removePrintView();
+    res.left = document.querySelectorAll('#print-root').length;
+    res.listeners = layout.listeners.size;
+    return res;
+  });
+  check(pr.pages === 44 && pr.cssW === '190mm' && pr.cssH === '277mm' && pr.pxW === 760 && /A1 \/ D11/.test(pr.title), `druk: ${pr.pages} kafelków A4, kanwa ${pr.cssW}×${pr.cssH} (${pr.title})`);
+  check(pr.darkPx > 500, `druk: kafelek z torem ma szyny (${pr.darkPx} ciemnych px)`);
+  check(pr.onePage === 1 && pr.oneCss === '277mm' && /1:7\.2/.test(pr.oneTitle) && pr.left === 0, `druk: jedna strona, ${pr.oneCss} szerokości, ${pr.oneTitle}`);
+  check(pr.listeners < 12, `druk: renderery tymczasowe odpięte od układu (${pr.listeners} listenerów)`);
+
+  // lista zakupów: 2 × G239 w układzie, mam 1 → kupić 1; tekst listy; zapis
+  await page.click('#btn-menu');
+  await page.fill('#bom input.have[data-id="55200"]', '1');
+  await page.dispatchEvent('#bom input.have[data-id="55200"]', 'change');
+  const shop = await page.evaluate(() => ({ buy: [...document.querySelectorAll('#bom .buy')].map((e) => e.textContent), toBuy: document.getElementById('to-buy').textContent, list: window.__routelayout.shoppingList(), saved: JSON.parse(localStorage.getItem('routelayout.have'))['55200'] }));
+  await page.click('#menu button[data-close]');
+  check(shop.buy[0] === '1 ×' && shop.buy[1] === '2 ×' && /2/.test(shop.toBuy) === false && /3/.test(shop.toBuy) && shop.list.startsWith('1 × 55200') && shop.saved === 1, `lista zakupów: ${JSON.stringify(shop.buy)} → "${shop.toBuy}"`);
+  await page.evaluate(() => { localStorage.removeItem('routelayout.have'); });
+
   // i18n: przełączenie na DE zmienia teksty UI i nazwy w katalogu
   const de = await page.evaluate(() => {
     const sel = document.getElementById('sel-lang'); sel.value = 'de'; sel.dispatchEvent(new Event('change'));

@@ -187,7 +187,11 @@ input[type=color] { width: 56px; min-height: 40px; padding: 2px 4px; border: 1px
   display: flex; flex-direction: column; gap: 10px;
 }
 .sheet-panel h2 { margin: 6px 0 0; font-size: 16px; }
-.bom { display: grid; grid-template-columns: auto auto 1fr; gap: 4px 12px; font-size: 14px; font-variant-numeric: tabular-nums; }
+.bom { display: grid; grid-template-columns: auto auto 1fr auto auto; gap: 4px 10px; font-size: 14px; font-variant-numeric: tabular-nums; align-items: center; }
+.bom .have { width: 56px; min-height: 32px; padding: 2px 6px; text-align: right; }
+.bom .buy { font-weight: 600; color: var(--c-danger); text-align: right; }
+.bom .buy.ok { color: #2e9e5b; }
+.bom .head { font-size: 11px; color: var(--c-muted); text-transform: uppercase; letter-spacing: 0.3px; }
 .bom .n { text-align: right; font-weight: 600; }
 .bom .id { color: var(--c-muted); }
 .bom .total { grid-column: 1 / -1; border-top: 1px solid var(--c-border); padding-top: 6px; margin-top: 4px; color: var(--c-muted); }
@@ -227,4 +231,17 @@ input[type=color] { width: 56px; min-height: 40px; padding: 2px 4px; border: 1px
   .pal-list { max-height: none; flex: 1; }
   .palette-body { height: 100%; }
   .sheet-panel { left: auto; right: 0; top: 0; bottom: 0; width: 420px; max-height: none; border-radius: 16px 0 0 16px; }
+}
+
+/* druk: kafelki A4 1:1 lub cały plan na stronie */
+#print-root { display: none; }
+@media print {
+  @page { size: A4 portrait; margin: 10mm; }
+  body { display: block; height: auto; overflow: visible; background: #fff; }
+  body.printing > *:not(#print-root) { display: none !important; }
+  #print-root { display: block; }
+  #print-root .page { width: 190mm; height: 277mm; page-break-after: always; break-after: page; position: relative; overflow: hidden; }
+  #print-root .page.landscape { width: 277mm; height: 190mm; }
+  #print-root .page-title { position: absolute; left: 0; top: 0; font: 9px/1.2 system-ui, sans-serif; color: #333; background: rgba(255,255,255,0.85); padding: 1mm 2mm; }
+  #print-root canvas { display: block; }
 }

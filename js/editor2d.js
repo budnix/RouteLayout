@@ -38,9 +38,12 @@ export class Editor2D {
     canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     new ResizeObserver(() => this.resize()).observe(canvas.parentElement);
-    layout.onChange(() => { this.validateCursor(); this.draw(); });
+    this._unsubscribe = layout.onChange(() => { this.validateCursor(); this.draw(); });
     this.resize();
   }
+
+  /** Odpina edytor od układu (renderery tymczasowe, np. druk). */
+  dispose() { this._unsubscribe?.(); this._unsubscribe = null; }
 
   on(fn) { this.listeners.add(fn); }
   emit(kind, payload) { for (const fn of this.listeners) fn(kind, this, payload); }
