@@ -155,6 +155,30 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     check(pa.length === 3 && pa[1].type === 'arc' && pa[1].radius.r === 421.88 && pa[1].sweep === 30 && pa[1].dir === -1, 'brzeg: R2 30° w prawo z szumem → R2 30° w prawo (' + JSON.stringify(pa.map((p) => p.type === 'arc' ? [p.radius.r, p.sweep, p.dir] : Math.round(p.L))) + ')');
   }
 
+  // ---- szkic: rozjazdy łukowe i skrzyżowania (Node) ----
+  {
+    const { R: RAD } = await import('../js/catalog.js');
+    const d2r = (d) => d * Math.PI / 180;
+    const line = (x0, y0, a, L, step = 6) => { const o = []; for (let d = 0; d <= L; d += step) o.push([x0 + d * Math.cos(d2r(a)), y0 + d * Math.sin(d2r(a))]); return o; };
+    const arc = (x0, y0, a, R, dir, sweep, step = 1.5) => { const o = []; const cx = x0 - dir * R * Math.sin(d2r(a)), cy = y0 + dir * R * Math.cos(d2r(a)); for (let t = 0; t <= sweep; t += step) { const a1 = a - dir * 90 + dir * t; o.push([cx + R * Math.cos(d2r(a1)), cy + R * Math.sin(d2r(a1))]); } return o; };
+    const build = (strokes) => { const f = fitStrokes(strokes, new Layout()); const L = new Layout(); L.setBoard(4000, 3000); L.addMany(f.pieces); return { ids: f.pieces.map((p) => p.id), open: L.openPorts().length }; };
+    // odgałęzienie z łuku R3 po wewnętrznym R2 → BWL, tor główny zewnętrzny
+    let toe = arc(400, 600, 0, RAD.R3, 1, 30).pop();
+    let r = build([[...line(100, 600, 0, 300), ...arc(400, 600, 0, RAD.R3, 1, 90).slice(1)], arc(toe[0], toe[1], 30, RAD.R2, 1, 60)]);
+    check(r.ids.includes('55222') && r.open === 3 && !r.ids.includes('55220') && !r.ids.includes('55221'), `szkic: odgałęzienie z łuku R3 → rozjazd łukowy BWL, 3 otwarte końce (${r.ids.join(',')})`);
+    // tor główny R2, odgałęzienie zewnętrzne R3 → BWL z torem głównym na wewnętrznym łuku (wyjście 2); wzajemne „rodzicielstwo” nie może zapętlić
+    toe = arc(400, 600, 0, RAD.R2, 1, 30).pop();
+    r = build([[...line(100, 600, 0, 300), ...arc(400, 600, 0, RAD.R2, 1, 90).slice(1)], arc(toe[0], toe[1], 30, RAD.R3, 1, 60)]);
+    check(r.ids.includes('55222') && r.open === 3 && r.ids.filter((i) => i === '55212').length === 2, `szkic: tor główny R2 + odnoga R3 → BWL z wyjściem wewnętrznym (${r.ids.join(',')})`);
+    // skrzyżowanie 15° → DKW, obie części drugiej kreski doczepione (4 otwarte końce = 2 kreski × 2)
+    r = build([line(100, 500, 0, 900), line(300, 500 + 250 * Math.tan(d2r(15)), -15, 520)]);
+    check(r.ids.includes('55224') && r.open === 4 && !r.ids.some((i) => i === '55220' || i === '55221'), `szkic: kreski krzyżujące się pod 15° → DKW, bez rozjazdu, 4 otwarte końce (${r.ids.join(',')})`);
+    r = build([line(100, 500, 0, 900), line(350, 500 + 200 * Math.tan(d2r(30)), -30, 470)]);
+    check(r.ids.includes('55241') && r.open === 4, `szkic: skrzyżowanie 30° → krzyżownica K30 (${r.ids.join(',')})`);
+    r = build([line(100, 500, 0, 900), line(450, 500 + 100 * Math.tan(d2r(60)), -60, 240)]);
+    check(!r.ids.some((i) => i === '55224' || i === '55240' || i === '55241') && r.open === 4, `szkic: skrzyżowanie 60° nie istnieje w palecie → bez krzyżownicy (${r.ids.join(',')})`);
+  }
+
   // ---- domykanie pętli (solver, Node) ----
   {
     const { closeGap, pickPartner } = await import('../js/closer.js');

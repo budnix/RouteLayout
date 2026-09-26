@@ -415,11 +415,12 @@ export function pathToPieces(path, freeEnd = false) {
 export function chain(list, startPose) {
   let pose = { ...startPose };
   const pieces = [];
-  for (const { id, entry } of list) {
+  for (const { id, entry, exit } of list) {
     const p = Layout.poseFor(id, entry, { x: pose.x, y: pose.y, a: pose.a });
     const piece = { id, x: p.x, y: p.y, rot: p.rot, z: startPose.z || 0 };
     pieces.push(piece);
-    const exitIdx = BY_ID[id].group === 'turnout' ? (entry === 0 ? 1 : 0) : (entry === 0 ? 1 : 0);
+    // wyjście: jawne (`exit`, np. wewnętrzny tor rozjazdu łukowego = 2) albo drugi koniec tej samej trasy (0↔1, 2↔3)
+    const exitIdx = exit ?? (entry ^ 1);
     const e = Layout.worldPort(piece, exitIdx);
     pose = { x: e.x, y: e.y, a: e.a };
   }

@@ -10,9 +10,9 @@
 // zaczyna się obok bieżącej pozy, kandydatem staje się rozjazd WL/WR, a tamta
 // kreska jest dalej dopasowywana od portu odgałęzienia.
 
-import { BY_ID, geoOf, sampleSegment } from './catalog.js';
+import { BY_ID, geoOf, sampleSegment, R as RAD } from './catalog.js';
 import { Layout, norm } from './layout.js';
-import { segment, idealPath, pathToPieces, chain, decomposeStraight, TURNOUT_LEN } from './normalize.js';
+import { segment, idealPath, pathToPieces, chain, decomposeStraight, TURNOUT_LEN, decomposeArc } from './normalize.js';
 
 const STEP = 5;                 // próbkowanie kreski [mm]
 const MIN_STROKE = 60;          // krótsze kreski ignorujemy [mm]
@@ -27,6 +27,13 @@ const BEAM = 3;
 const STRAIGHTS = [['55200', 0], ['55201', 0], ['55202', 0], ['55205', 0]];
 const CURVES = ['55211', '55212', '55213', '55214', '55219', '55218', '55215'].flatMap((id) => [[id, 0], [id, 1]]);
 const TURNOUTS = ['55220', '55221'].flatMap((id) => [[id, 0], [id, 1]]);
+// rozjazdy łukowe: [lewy, prawy, promień zewnętrzny, wewnętrzny]; tor główny szkicu może być zewnętrzny (wyjście 1) lub wewnętrzny (wyjście 2)
+const CURVED_TURNOUTS = [['55222', '55223', RAD.R3, RAD.R2], ['55227', '55228', RAD.R4, RAD.R3]];
+const CURVED_SWEEP = 30;
+// skrzyżowania kresek: kąt → element (15° = DKW, przejezdny w obu kierunkach; 30° = krzyżownica K30)
+const CROSSINGS = { 15: '55224', 30: '55241' };
+const CROSS_ANG_TOL = 7;        // ° – tolerancja kąta skrzyżowania
+const CROSS_OFF = 40;           // mm – maks. odległość środka krzyżownicy od punktu przecięcia kresek
 const PENALTY = { '55205': 14, '55202': 5, '55215': 12, '55218': 10, '55211': 3, '55220': 6, '55221': 6 };
 
 const d2r = (d) => (d * Math.PI) / 180;
@@ -302,11 +309,107 @@ function findParents(strokes) {
       if (b.parent) break;
     }
   }
-  // kolejność: rodzice przed dziećmi, dłuższe najpierw
+  // wzajemne „rodzicielstwo” (obie kreski zaczynają się na sobie): rodzicem zostaje dłuższa
+  for (const b of strokes) if (b.parent && b.parent.parent === b) { if (b.len >= b.parent.len) b.parent = null; else b.parent.parent = null; }
+  findCrossings(strokes);
+  // kolejność: rodzice przed dziećmi, dłuższe najpierw (z osłoną przed cyklem)
   const ordered = [];
-  const visit = (s) => { if (ordered.includes(s)) return; if (s.parent && !ordered.includes(s.parent)) visit(s.parent); ordered.push(s); };
+  const visit = (s, depth = 0) => { if (ordered.includes(s)) return; if (s.parent && depth < strokes.length && !ordered.includes(s.parent)) visit(s.parent, depth + 1); if (!ordered.includes(s)) ordered.push(s); };
   for (const s of [...strokes].sort((a, b) => b.len - a.len)) visit(s);
   return ordered;
+}
+
+/**
+ * Skrzyżowania kresek (nie odgałęzienia): wnętrze A przecina wnętrze B pod kątem ≈15° lub ≈30°.
+ * Zapisuje na obu kreskach { other, i, pt, deg }.
+ */
+function findCrossings(strokes) {
+  for (const s of strokes) s.crossings = [];
+  const margin = 6;   // pomiń 30 mm przy końcach – to odgałęzienia, nie skrzyżowania
+  for (let i = 0; i < strokes.length; i++) for (let j = i + 1; j < strokes.length; j++) {
+    const a = strokes[i], b = strokes[j];
+    if (a.parent === b || b.parent === a) continue;
+    const x = polyCross(a.pts, b.pts, margin);
+    if (!x) continue;
+    const rel = Math.abs(norm(a.tan[x.ia] - b.tan[x.ib])), ang = Math.min(rel, 180 - rel);
+    const deg = Object.keys(CROSSINGS).map(Number).find((d) => Math.abs(ang - d) <= CROSS_ANG_TOL);
+    if (deg === undefined) continue;
+    a.crossings.push({ other: b, i: x.ia, pt: x.pt, deg });
+    b.crossings.push({ other: a, i: x.ib, pt: x.pt, deg });
+  }
+}
+/** Pierwsze przecięcie łamanych (indeksy próbek i punkt), z marginesem próbek od końców. */
+function polyCross(P, Q, margin) {
+  const orient = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+  for (let i = margin; i < P.length - margin; i++) for (let j = margin; j < Q.length - margin; j++) {
+    const a = P[i - 1], b = P[i], c = Q[j - 1], d = Q[j];
+    const o1 = orient(a, b, c), o2 = orient(a, b, d), o3 = orient(c, d, a), o4 = orient(c, d, b);
+    if (o1 !== o2 && o3 !== o4 && o1 && o2 && o3 && o4) {
+      const den = (a[0] - b[0]) * (c[1] - d[1]) - (a[1] - b[1]) * (c[0] - d[0]);
+      const t = den ? ((a[0] - c[0]) * (c[1] - d[1]) - (a[1] - c[1]) * (c[0] - d[0])) / den : 0;
+      return { ia: i, ib: j, pt: [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])] };
+    }
+  }
+  return null;
+}
+/** Dzieli kreskę w próbce i na dwie: głowę (odwróconą, zaczyna się w punkcie podziału) i ogon. */
+function splitStroke(s, i) {
+  const head = { pts: s.pts.slice(0, i + 1).reverse(), tan: s.tan.slice(0, i + 1).reverse().map((a) => norm(a + 180)), len: i * STEP, done: false, start: null, parent: null, crossings: [] };
+  const tail = { ...subStroke(s, i), done: false, start: null, parent: null, crossings: [] };
+  return [head, tail];
+}
+/** Poza na łuku (R, dir) po kącie t od pozy początkowej. */
+function arcPose(pose, R, dir, t) {
+  const cx = pose.x - dir * R * Math.sin(d2r(pose.a)), cy = pose.y + dir * R * Math.cos(d2r(pose.a));
+  const a1 = pose.a - dir * 90 + dir * t;
+  return { x: cx + R * Math.cos(d2r(a1)), y: cy + R * Math.sin(d2r(a1)), a: norm(pose.a + dir * t) };
+}
+
+/**
+ * Łuk (promień katalogowy, kąt sweep, kierunek dir) od pozy: jeśli inna kreska odgałęzia się
+ * z niego, wstaw rozjazd łukowy (BWL/BWR R2/R3 lub R3/R4) tam, gdzie jego odnoga pokrywa się
+ * z tą kreską; tor główny szkicu może być torem zewnętrznym albo wewnętrznym rozjazdu.
+ * Zwraca listę { id, entry, exit } albo null, gdy nic nie pasuje.
+ */
+function arcWithTurnouts(p, pose, strokes, stroke = null) {
+  const R = p.radius.r, dir = p.dir, sweep = p.sweep;
+  if (sweep < CURVED_SWEEP - 1e-6) return null;
+  const reach = 2 * R + 400;
+  const crosses = (s) => (stroke?.crossings || []).some((c) => c.other === s);
+  const near = strokes.filter((s) => !s.done && !s.start && !crosses(s) && (dist(s.pts[0], pose) < reach || dist(s.pts[s.pts.length - 1], pose) < reach));
+  if (!near.length) return null;
+  const opts = [];
+  for (const [l, r, rOut, rIn] of CURVED_TURNOUTS) {
+    const id = dir > 0 ? l : r;
+    if (Math.abs(rOut - R) < 1) opts.push({ id, exit: 1, branch: 2 });
+    if (Math.abs(rIn - R) < 1) opts.push({ id, exit: 2, branch: 1 });
+  }
+  if (!opts.length) return null;
+  const step = Math.min(...p.radius.pieces.map(([, ang]) => ang));
+  const entry = dir > 0 ? 0 : 1;
+  let best = null;
+  for (let t = 0; t <= sweep - CURVED_SWEEP + 1e-6; t += step) {
+    const toe = arcPose(pose, R, dir, t);
+    for (const o of opts) {
+      const piece = place(o.id, 0, toe);
+      const port = Layout.worldPort(piece, o.branch);
+      for (const s of near) {
+        const m = matchBranch(s, port);
+        if (!m) continue;
+        const cost = m.d + 1.5 * m.da + 4 * decomposeArc(p.radius, t).length;
+        if (!best || cost < best.cost) best = { cost, t, ...o, match: m };
+      }
+    }
+  }
+  if (!best) return null;
+  const list = decomposeArc(p.radius, best.t).map((id) => ({ id, entry }));
+  list.push({ id: best.id, entry: 0, exit: best.exit });
+  const turnout = chain(list, pose).pieces[list.length - 1];
+  const port = Layout.worldPort(turnout, best.branch);
+  best.match.stroke.start = { pose: { x: port.x, y: port.y, a: port.a } };
+  if (best.match.reverse) reverseStroke(best.match.stroke);
+  for (const id of decomposeArc(p.radius, sweep - best.t - CURVED_SWEEP)) list.push({ id, entry });
+  return list;
 }
 
 /**
@@ -314,11 +417,12 @@ function findParents(strokes) {
  * z niej, wstaw rozjazd (skanując położenie ostrza) i ustaw start tej kreski.
  * Zwraca listę { id, entry }.
  */
-function straightWithTurnouts(L, pose, strokes, freeStart = false, freeEnd = false) {
+function straightWithTurnouts(L, pose, strokes, freeStart = false, freeEnd = false, stroke = null) {
   const list = [];
   let restL = L, cur = { ...pose };
   for (let guard = 0; guard < 6; guard++) {
-    const near = strokes.filter((s) => !s.done && !s.start && (dist(s.pts[0], cur) < L + 400 || dist(s.pts[s.pts.length - 1], cur) < L + 400));
+    const crosses = (s) => (stroke?.crossings || []).some((c) => c.other === s);   // kreska przecinająca to skrzyżowanie, nie odgałęzienie
+    const near = strokes.filter((s) => !s.done && !s.start && !crosses(s) && (dist(s.pts[0], cur) < L + 400 || dist(s.pts[s.pts.length - 1], cur) < L + 400));
     let best = null;
     if (near.length && restL >= TURNOUT_LEN) {
       for (let t = 0; t <= restL - TURNOUT_LEN + 1e-6; t += BRANCH_SCAN) {
@@ -337,6 +441,19 @@ function straightWithTurnouts(L, pose, strokes, freeStart = false, freeEnd = fal
         }
       }
     }
+    // skrzyżowania z inną (jeszcze nieułożoną) kreską: krzyżownica/DKW ze środkiem w punkcie przecięcia
+    for (const c of stroke?.crossings || []) {
+      if (c.used || c.other.done || c.other.start) continue;
+      const id = CROSSINGS[c.deg], Lp = BY_ID[id].geo.segments[0].x2;
+      const t = projLen(cur, { x: c.pt[0], y: c.pt[1] }) - Lp / 2;
+      const off = Math.abs((c.pt[0] - cur.x) * -Math.sin(d2r(cur.a)) + (c.pt[1] - cur.y) * Math.cos(d2r(cur.a)));
+      if (t < -20 || t > restL - Lp + 20 || off > CROSS_OFF) continue;
+      let rel = norm(c.other.tan[c.other.i] - cur.a); if (Math.abs(rel) > 90) rel = norm(rel + 180);
+      const da = Math.abs(Math.abs(rel) - c.deg);
+      const ids = decomposeStraight(Math.max(0, t));
+      const cost = off + 1.5 * da + 4 * ids.length;
+      if (!best || cost < best.cost) best = { cost, t: Math.max(0, t), id, entry: rel > 0 ? 0 : 2, cross: c };
+    }
     if (!best) break;
     if (freeStart && guard === 0) {
       // początek kreski nie jest przypięty: przesuń go tak, by przed ostrzem były tylko całe G239
@@ -352,11 +469,26 @@ function straightWithTurnouts(L, pose, strokes, freeStart = false, freeEnd = fal
     const c = chain(list, pose);
     cur = c.end; restL = L - projLen(pose, cur);
     const turnout = c.pieces[c.pieces.length - 1];
-    const port = Layout.worldPort(turnout, 2);
-    const b = best.match;
-    b.stroke.start = { pose: { x: port.x, y: port.y, a: port.a } };
-    if (b.reverse) reverseStroke(b.stroke);
-    if (restL < 20) return list;
+    if (best.cross) {
+      // druga kreska przechodzi przez krzyżownicę: dzielimy ją w punkcie przecięcia, obie części startują z portów drugiego toru
+      const x = best.cross; x.used = true;
+      const [pA, pB] = best.entry === 0 ? [Layout.worldPort(turnout, 2), Layout.worldPort(turnout, 3)] : [Layout.worldPort(turnout, 0), Layout.worldPort(turnout, 1)];
+      const o = x.other, tanTail = o.tan[x.i];
+      const tailPort = Math.abs(norm(pB.a - tanTail)) < Math.abs(norm(pA.a - tanTail)) ? pB : pA, headPort = tailPort === pB ? pA : pB;
+      const [head, tail] = splitStroke(o, x.i);
+      o.done = true;
+      for (const [part, port] of [[head, headPort], [tail, tailPort]]) {
+        if (part.pts.length < 4) continue;
+        part.start = { pose: { x: port.x, y: port.y, a: port.a } };
+        strokes.push(part);
+      }
+    } else {
+      const port = Layout.worldPort(turnout, 2);
+      const b = best.match;
+      b.stroke.start = { pose: { x: port.x, y: port.y, a: port.a } };
+      if (b.reverse) reverseStroke(b.stroke);
+    }
+    if (restL < 20) return { list, pose };
   }
   // wolny koniec kreski: mniej elementów ważniejsze niż dokładna długość
   for (const id of decomposeStraight(restL, freeEnd ? 25 : 8)) list.push({ id, entry: 0 });
@@ -373,8 +505,11 @@ export function fitNormalized(rawStrokes, layout) {
   const pieces = [];
   let openPorts = layout ? layout.openPorts().map((p) => ({ x: p.x, y: p.y, a: p.a })) : [];
 
-  for (const stroke of ordered) {
+  for (let si = 0; si < ordered.length; si++) {
+    const stroke = ordered[si];
     if (stroke.done) continue;
+    // części kresek przeciętych krzyżownicą dochodzą w trakcie (strokes) – dołącz je do kolejki
+    for (const s of strokes) if (!ordered.includes(s)) ordered.push(s);
     stroke.done = true;
     let pose, from = 0, snapStart = true;
     if (stroke.start) {
@@ -402,9 +537,9 @@ export function fitNormalized(rawStrokes, layout) {
     for (const [pi, p] of path.entries()) {
       let part;
       if (p.type === 'straight') {
-        const r = straightWithTurnouts(p.L, cur, strokes, snapStart && list.length === 0, pi === path.length - 1);
+        const r = straightWithTurnouts(p.L, cur, strokes, snapStart && list.length === 0, pi === path.length - 1, stroke);
         part = r.list; if (list.length === 0) pose = r.pose; cur = r.pose;
-      } else part = pathToPieces([p]);
+      } else part = arcWithTurnouts(p, cur, strokes, stroke) || pathToPieces([p]);
       const c = chain(part, cur);
       list.push(...part); cur = c.end;
     }
@@ -412,6 +547,7 @@ export function fitNormalized(rawStrokes, layout) {
     for (const b of built) b.z = pose.z || 0;
     pieces.push(...built);
     for (const piece of built) for (let i = 0; i < geoOf(piece).ports.length; i++) openPorts.push(Layout.worldPort(piece, i));
+    for (const s of strokes) if (!ordered.includes(s)) ordered.push(s);
   }
   return { pieces, strokesUsed: strokes.length };
 }
