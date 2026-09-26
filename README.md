@@ -4,9 +4,21 @@
 
 A web app (HTML5, ES modules, Canvas 2D + three.js) for designing H0 model railway layouts with a real-time 3D preview. Runs in Safari on iPad and iPhone (touch, pinch-zoom, "Add to Home Screen") as well as on desktop browsers. No build step, no backend, no account — your layout is saved in the browser.
 
-![RailSketch on desktop: 2D editor next to the 3D preview](docs/screenshot-desktop.png)
+![RailSketch on desktop: 2D plan of a small station layout next to the 3D preview](docs/screenshot-desktop.png)
 
-![Scenery objects in the 3D preview](docs/screenshot-scenery.png)
+## Screenshots
+
+| Sketch it… | …and get real PIKO pieces |
+|---|---|
+| ![Freehand sketch of a track with a branch, drawn over the guide grid](docs/screenshot-sketch.png) | ![The same sketch fitted with straights, R2 curves and a right turnout](docs/screenshot-sketch-result.png) |
+
+| 3D preview | Test run |
+|---|---|
+| ![3D preview: station, platform, viaduct on piers, road, pond and trees](docs/screenshot-3d.png) | ![A train running on the layout in 2D and 3D](docs/screenshot-train.png) |
+
+| Menu: feasibility check and shopping list | iPhone |
+|---|---|
+| ![Menu with board settings, rolling stock, feasibility check and bill of materials with "have" and "buy" columns](docs/screenshot-menu.png) | ![RailSketch on a phone: 2D plan above the palette](docs/screenshot-phone.png) |
 
 ## Features
 
