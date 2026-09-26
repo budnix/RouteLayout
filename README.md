@@ -79,6 +79,7 @@ Keyboard: `Ctrl/Cmd+Z` undo, `Ctrl/Cmd+Shift+Z` / `Ctrl+Y` redo, `Delete` remove
 | 55226 | WY | Y turnout |
 | 55240 / 55241 | K15 / K30 | crossings 15° / 30° |
 | 55280 | — | buffer stop |
+| 554xx | — | the same pieces with roadbed (*PIKO A-Gleis mit Bettung*): identical geometry, article number = 552xx + 200 (55418 confirmed; verify the others before ordering) — pick the system at the top of the PIKO tab |
 | TT | — | generic turntable (adjustable diameter, connections at any angle) |
 
 `*` article number to be confirmed (geometry is correct).

@@ -228,6 +228,15 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     check(T3.running && T3.dist > 9000, `jazda: na owalu bez końca (${T3.dist.toFixed(0)} mm)`);
   }
 
+  // ---- systemy torów (Node) ----
+  {
+    const { CATALOG, BY_ID, toSystem, SYSTEMS } = await import('../js/catalog.js');
+    const bed = CATALOG.filter((p) => p.system === 'piko-a-bed');
+    check(Object.keys(SYSTEMS).length === 2 && bed.length === 28 && bed.every((b) => BY_ID[b.base].geo === b.geo && b.id === '554' + b.base.slice(3)), `systemy: ${bed.length} elementów 554xx z geometrią 552xx`);
+    check(toSystem('55200', 'piko-a-bed') === '55400' && toSystem('55412', 'piko-a') === '55212' && toSystem('TT', 'piko-a-bed') === 'TT' && toSystem('55280', 'piko-a-bed') === '55280', 'systemy: mapowanie 552↔554, obrotnica i kozioł bez zmian');
+    check(BY_ID['55418'].verified !== false && BY_ID['55400'].verified === false, 'systemy: 55418 potwierdzony, pozostałe 554xx do weryfikacji');
+  }
+
   // obrotnica + wysokości (model, Node)
   {
     const L = new Layout();
@@ -528,6 +537,23 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.click('#menu button[data-close]');
   check(shop.buy[0] === '1 ×' && shop.buy[1] === '2 ×' && /2/.test(shop.toBuy) === false && /3/.test(shop.toBuy) && shop.list.startsWith('1 × 55200') && shop.saved === 1, `lista zakupów: ${JSON.stringify(shop.buy)} → "${shop.toBuy}"`);
   await page.evaluate(() => { localStorage.removeItem('routelayout.have'); });
+
+  // system torów w UI: wybór podsypki → lista 554xx, wstawianie, dopasowanie szkicu i domykanie mapują na 554xx
+  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); document.querySelector('#pal-tabs button[data-tab="piko"]').click(); window.__routelayout.setSystem('piko-a-bed'); });
+  const sysRows = await page.evaluate(() => [...document.querySelectorAll('.pal-item[data-id]')].map((e) => e.dataset.id));
+  await page.click('.pal-item[data-id="55400"]');
+  await page.click('.pal-item[data-id="55412"] button[data-entry="0"]');
+  const sysPieces = await page.evaluate(() => window.__routelayout.layout.pieces.map((p) => p.id));
+  // szkic: prosta → elementy 554xx
+  await page.click('#btn-draw');
+  const bx = await page.locator('#canvas2d').boundingBox();
+  await page.mouse.move(bx.x + 60, bx.y + 80); await page.mouse.down(); for (let i = 1; i <= 30; i++) await page.mouse.move(bx.x + 60 + i * 6, bx.y + 80); await page.mouse.up();
+  await page.click('#btn-finish'); await page.waitForTimeout(200);
+  const sysFit = await page.evaluate(() => window.__routelayout.layout.pieces.slice(2).map((p) => p.id));
+  await page.evaluate(() => window.__routelayout.setSystem('piko-a'));
+  const backRows = await page.evaluate(() => document.querySelectorAll('.pal-item[data-id^="552"]').length);
+  check(sysRows.length === 28 && sysRows.every((id) => id.startsWith('554')) && sysPieces.join() === '55400,55412', `system torów: lista ${sysRows.length}×554xx, wstawiono ${sysPieces.join('+')}`);
+  check(sysFit.length > 0 && sysFit.every((id) => id.startsWith('554')) && backRows === 28, `system torów: szkic → ${sysFit.join(',')}; powrót do 552xx (${backRows} wierszy)`);
 
   // i18n: przełączenie na DE zmienia teksty UI i nazwy w katalogu
   const de = await page.evaluate(() => {

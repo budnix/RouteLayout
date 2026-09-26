@@ -205,6 +205,36 @@ export function geoOf(piece) {
   return def.dynamic ? turntableGeo(piece) : def.geo;
 }
 
+// ---- systemy torów ----------------------------------------------------------------
+// Ten sam katalog geometrii obsługuje kilka systemów. PIKO A-Gleis z podsypką
+// (seria 554xx) ma identyczną geometrię, a numer = 552xx + 200 (potwierdzone dla
+// 55418 = R2 7,5°; pozostałe numery oznaczone do weryfikacji przed zamówieniem).
+export const SYSTEMS = {
+  'piko-a': { name: { pl: 'PIKO A-Gleis (bez podsypki, 552xx)', en: 'PIKO A-Gleis (no roadbed, 552xx)', de: 'PIKO A-Gleis (ohne Bettung, 552xx)' } },
+  'piko-a-bed': { name: { pl: 'PIKO A-Gleis z podsypką (554xx)', en: 'PIKO A-Gleis with roadbed (554xx)', de: 'PIKO A-Gleis mit Bettung (554xx)' }, suffix: { pl: ' (z podsypką)', en: ' (roadbed)', de: ' (Bettung)' } },
+};
+export const DEFAULT_SYSTEM = 'piko-a';
+for (const it of items) if (!it.system) it.system = it.id.startsWith('552') ? 'piko-a' : 'common';
+const bedded = items.filter((it) => it.system === 'piko-a' && it.group !== 'accessory').map((base) => ({
+  ...base,
+  id: '554' + base.id.slice(3),
+  system: 'piko-a-bed',
+  base: base.id,
+  name: Object.fromEntries(Object.entries(base.name).map(([k, v]) => [k, v + SYSTEMS['piko-a-bed'].suffix[k]])),
+  verified: base.id === '55218' ? base.verified !== false : false,
+}));
+items.push(...bedded);
+
+/** Odpowiednik elementu w danym systemie (obrotnica, kozioł itp. bez zmian). */
+export function toSystem(id, system = DEFAULT_SYSTEM) {
+  const def = BY_ID[id];
+  if (!def || def.system === 'common' || def.system === system) return id;
+  const baseId = def.base || def.id;
+  if (system === 'piko-a') return baseId;
+  const target = items.find((it) => it.system === system && it.base === baseId);
+  return target ? target.id : id;
+}
+
 export const CATALOG = items;
 export const BY_ID = Object.fromEntries(items.map((p) => [p.id, p]));
 

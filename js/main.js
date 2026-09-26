@@ -1,4 +1,4 @@
-import { CATALOG, BY_ID, sampleSegment } from './catalog.js';
+import { CATALOG, BY_ID, sampleSegment, SYSTEMS, DEFAULT_SYSTEM, toSystem } from './catalog.js';
 import { Layout, norm } from './layout.js';
 import { Editor2D } from './editor2d.js';
 import { View3D } from './view3d.js';
@@ -28,7 +28,16 @@ const editor = new Editor2D($('canvas2d'), layout);
 const view3d = new View3D($('view3d'), layout);
 
 // ---- paleta: zakładki + lista ---------------------------------------------------
-const selEntry = $('sel-entry'), palList = $('pal-list'), palTabs = $('pal-tabs');
+const selEntry = $('sel-entry'), palList = $('pal-list'), palTabs = $('pal-tabs'), selSystem = $('sel-system');
+let system = (() => { try { const v = localStorage.getItem('routelayout.system'); return SYSTEMS[v] ? v : DEFAULT_SYSTEM; } catch { return DEFAULT_SYSTEM; } })();
+function fillSystems() {
+  selSystem.innerHTML = '';
+  for (const [key, def] of Object.entries(SYSTEMS)) selSystem.append(new Option(def.name[getLang()] || def.name.en, key));
+  selSystem.value = system;
+}
+selSystem.addEventListener('change', () => { system = selSystem.value; try { localStorage.setItem('routelayout.system', system); } catch { /* ignoruj */ } buildList(); });
+/** Mapuje elementy (np. z dopasowania szkicu, domykania) na wybrany system torów. */
+const toCurrentSystem = (pieces) => pieces.map((p) => ({ ...p, id: toSystem(p.id, system) }));
 let palTab = (() => { try { return localStorage.getItem('routelayout.tab') || 'piko'; } catch { return 'piko'; } })();
 const PIKO_SECTIONS = ['straight', 'curve', 'turnout', 'crossing', 'flex'];
 
@@ -76,6 +85,7 @@ function buildList() {
   palList.innerHTML = '';
   palTabs.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.tab === palTab));
   $('entry-row').classList.toggle('hidden', palTab === 'scenery');
+  $('system-row').classList.toggle('hidden', palTab !== 'piko');
   const section = (label) => { const h = document.createElement('div'); h.className = 'pal-section'; h.textContent = label; palList.append(h); };
   if (palTab === 'scenery') {
     for (const g of SCENERY_GROUPS) {
@@ -93,7 +103,7 @@ function buildList() {
   }
   const groups = palTab === 'piko' ? PIKO_SECTIONS : ['accessory'];
   for (const g of groups) {
-    const items = CATALOG.filter((p) => p.group === g);
+    const items = CATALOG.filter((p) => p.group === g && (palTab !== 'piko' || p.system === system));
     if (!items.length) continue;
     if (palTab === 'piko') section(t('group.' + g));
     for (const def of items) {
@@ -124,6 +134,7 @@ palTabs.addEventListener('click', (e) => {
   palTab = b.dataset.tab; try { localStorage.setItem('routelayout.tab', palTab); } catch { /* ignoruj */ }
   buildList();
 });
+fillSystems();
 fillEntry();
 buildList();
 
@@ -211,7 +222,7 @@ function finishDrawing() {
   window.__routelayout.lastFit = result;
   const { pieces } = result;
   if (!pieces.length) { toast(t('draw.none'), 5000); return; }
-  const added = layout.addMany(pieces);
+  const added = layout.addMany(toCurrentSystem(pieces));
   editor.clearSketch();
   setDrawMode(false);
   autoClose(added);
@@ -256,7 +267,7 @@ function centerOn(x, y) {
 // ---- jazda próbna ---------------------------------------------------------------------
 const train = new Train(layout);
 editor.train = train;
-Object.assign(window.__routelayout, { train, setTrainMode, buildPrintView, removePrintView, shoppingList: () => shoppingList() });
+Object.assign(window.__routelayout, { train, setTrainMode, buildPrintView, removePrintView, shoppingList: () => shoppingList(), setSystem: (v) => { selSystem.value = v; selSystem.dispatchEvent(new Event('change')); }, getSystem: () => system });
 let trainRaf = null, trainLast = 0;
 function trainFrame(ts) {
   trainRaf = requestAnimationFrame(trainFrame);
@@ -310,7 +321,7 @@ function closeFromCursor() {
   if (!B) { toast(t('close.noPartner'), 5000); return; }
   const r = closeGap(A, B);
   if (!r.ok) { toast(t('close.fail', { d: r.error.d.toFixed(1), da: r.error.da.toFixed(1) }), 8000); return; }
-  layout.addMany(r.pieces);
+  layout.addMany(toCurrentSystem(r.pieces));
   editor.cursor = null; editor.selected = null; editor.emit('select'); editor.emit('cursor'); editor.draw();
   toast(t('close.ok', { list: listIds(r.pieces), d: r.error.d.toFixed(2) }), 5000);
 }
@@ -328,7 +339,7 @@ function autoClose(added) {
     const d = Math.hypot(A.x - B.x, A.y - B.y);
     if (d > 320 || Math.abs(norm(A.a - B.a + 180)) > 70) continue;
     const r = closeGap(A, B);
-    if (r.ok) { layout.addMany(r.pieces); toast(t('close.auto', { list: listIds(r.pieces) }), 5000); return true; }
+    if (r.ok) { layout.addMany(toCurrentSystem(r.pieces)); toast(t('close.auto', { list: listIds(r.pieces) }), 5000); return true; }
   }
   return false;
 }
@@ -455,7 +466,7 @@ selLang.addEventListener('change', () => { setLang(selLang.value); applyLanguage
 function applyLanguage() {
   applyDom();
   $('hint').textContent = t(editor.mode === 'draw' ? 'draw.hint' : 'pal.hint');
-  fillEntry(); buildList();
+  fillSystems(); fillEntry(); buildList();
   refreshMenu();
 }
 applyDom();

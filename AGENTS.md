@@ -29,7 +29,7 @@ Reviewers: a PR that changes any of the above without touching `AGENTS.md` is in
 |---|---|
 | `index.html` | Markup, SVG sprite, import map. Palette = tabs (`#pal-tabs`) + list (`#pal-list`). |
 | `css/app.css` | Mobile-first; ≥900 px puts the palette in a side panel. Colour tokens on `:root`, dark mode via `prefers-color-scheme`. |
-| `js/catalog.js` | PIKO A-Gleis catalog with **generated geometry** (`straight`, `curve`, `turnout`, `curvedTurnout`, `threeWay`, `wye`, `crossing`, `doubleSlip`), the turntable (`TT`, dynamic geometry), `geoOf(piece)`, `sampleSegment`. |
+| `js/catalog.js` | PIKO A-Gleis catalog with **generated geometry** and track **systems** (`SYSTEMS`, `toSystem`): 552xx = `piko-a`, generated 554xx mirrors = `piko-a-bed` (same `geo` object, `base` = 552xx id, unverified except 55418), turntable = `common`. Algorithms (fitter, closer) always produce base 552xx ids; `main.js` maps them to the selected system with `toCurrentSystem` at insertion time. Adding a brand = entries with a new `system` key (and a `SYSTEMS` entry); the palette lists whatever the catalog contains (`straight`, `curve`, `turnout`, `curvedTurnout`, `threeWay`, `wye`, `crossing`, `doubleSlip`), the turntable (`TT`, dynamic geometry), `geoOf(piece)`, `sampleSegment`. |
 | `js/layout.js` | The model: pieces, scenery, board, ports/connections, snapping, undo/redo, heights, turntable rim ports, JSON (de)serialisation, autosave. |
 | `js/editor2d.js` | Canvas 2D editor: pan/zoom/pinch, drag, select, cursor (active open end), sketch mode, rendering. |
 | `js/fitter.js` | Sketch → pieces. `prepareStroke`, greedy fitter (`fitGreedy`), normalised pipeline (`fitNormalized`), `fitStrokes` (entry), `normalizeStroke` (live, on pointer-up), turnout placement, attachment to open ends. |
@@ -82,7 +82,7 @@ When you touch these rules, run the "brzeg" (edge-case) tests — every one of t
 - The "cursor" (orange dot) is the active open port; `editor.addPiece(id, entry)` attaches there or, without a cursor, places the piece at the view centre. Tapping a blue dot moves the cursor; tapping a turntable rim creates a rim port there.
 - Selection bar shows different fields per selection: track piece → height / grade; turntable → diameter / height; scenery → length / width.
 - Errors are never silent: `window.error`, `unhandledrejection` and the custom `routelayout:error` event show a red toast (iPad has no console). `layout.emit` isolates listeners so a WebGL failure cannot abort an edit.
-- Preferences live in `localStorage` under `routelayout.*` (`v1` = the layout itself, `lang`, `mode`, `grid`, `fix`, `side`, `tab`, `have` = owned pieces per article for the shopping list). Layout-specific settings (board colour) go into the layout JSON instead.
+- Preferences live in `localStorage` under `routelayout.*` (`v1` = the layout itself, `lang`, `mode`, `grid`, `fix`, `side`, `tab`, `system` = selected track system, `have` = owned pieces per article for the shopping list). Layout-specific settings (board colour) go into the layout JSON instead.
 
 ## Testing
 
