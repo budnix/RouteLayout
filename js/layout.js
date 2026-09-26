@@ -316,7 +316,7 @@ export class Layout {
   toJSON() {
     return {
       version: 2, name: this.name, board: this.board,
-      pieces: this.pieces.map((p) => { const o = { id: p.id, x: p.x, y: p.y, rot: p.rot }; if (p.z) o.z = p.z; if (p.dz) o.dz = p.dz; if (BY_ID[p.id].turntable) Object.assign(o, { r: p.r, bridge: p.bridge, angles: p.angles }); return o; }),
+      pieces: this.pieces.map((p) => { const o = { id: p.id, x: p.x, y: p.y, rot: p.rot }; if (p.z) o.z = p.z; if (p.dz) o.dz = p.dz; if (p.sw) o.sw = p.sw; if (BY_ID[p.id].turntable) Object.assign(o, { r: p.r, bridge: p.bridge, angles: p.angles }); return o; }),
       scenery: this.scenery.map(({ type, x, y, rot, w, h }) => ({ type, x, y, rot, w, h })),
     };
   }
@@ -327,7 +327,7 @@ export class Layout {
     this.board = { w: 2000, h: 1000, color: DEFAULT_BOARD_COLOR, ...(obj.board || {}) };
     if (!/^#[0-9a-f]{6}$/i.test(this.board.color || '')) this.board.color = DEFAULT_BOARD_COLOR;
     this.pieces = obj.pieces.filter((p) => BY_ID[p.id]).map((p) => {
-      const o = { uid: nextUid++, id: p.id, x: +p.x || 0, y: +p.y || 0, rot: norm(+p.rot || 0), z: +p.z || 0, dz: +p.dz || 0 };
+      const o = { uid: nextUid++, id: p.id, x: +p.x || 0, y: +p.y || 0, rot: norm(+p.rot || 0), z: +p.z || 0, dz: +p.dz || 0, sw: +p.sw || 0 };
       if (BY_ID[p.id].turntable) Object.assign(o, { r: +p.r || BY_ID[p.id].r, bridge: norm(+p.bridge || 0), angles: Array.isArray(p.angles) ? p.angles.map(Number) : [] });
       return o;
     });

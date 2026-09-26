@@ -4,6 +4,7 @@ import * as THREE from '../vendor/three.module.js';
 import { OrbitControls } from '../vendor/OrbitControls.js';
 import { GAUGE, BY_ID } from './catalog.js';
 import { buildScenery3D } from './scenery.js';
+import { LOCO_LEN, WAGON_LEN, CAR_W } from './train.js';
 
 const RAIL_H = 2.5;          // wysokość szyny (Code 100 ≈ 2,5 mm)
 const RAIL_W = 1.2;
@@ -54,6 +55,8 @@ export class View3D {
     this.scene.add(this.trackGroup);
     this.sceneryGroup = new THREE.Group();
     this.scene.add(this.sceneryGroup);
+    this.trainGroup = new THREE.Group();
+    this.scene.add(this.trainGroup);
     this.boardMesh = null;
 
     this.mats = {
@@ -81,6 +84,22 @@ export class View3D {
   }
 
   invalidate() { this.dirty = true; }
+
+  /** Ustawia pozy pociągu (lokomotywa + wagony) lub chowa go (null). */
+  setTrain(loco, cars = []) {
+    this.trainGroup.clear();
+    if (!loco) { this.invalidate(); return; }
+    const mk = (pose, L, color) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(L, 38, CAR_W), new THREE.MeshStandardMaterial({ color, roughness: 0.6 }));
+      m.position.set(pose.x, (pose.z || 0) + 4 + 19, pose.y);
+      m.rotation.y = -pose.a * Math.PI / 180;
+      m.castShadow = true;
+      this.trainGroup.add(m);
+    };
+    mk(loco, LOCO_LEN, 0xc62828);
+    for (const c of cars) mk(c, WAGON_LEN, 0x3b6fb6);
+    this.invalidate();
+  }
   setSelected(uid) { this.selectedUid = uid; this.rebuildNeeded = true; this.invalidate(); }
 
   resize() {

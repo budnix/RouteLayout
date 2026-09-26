@@ -199,6 +199,33 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     // rozjazd: ramiona są jednym elementem, więc bliskość odnogi i prostej nie jest problemem
     const P = new Layout(); P.add('55220', { x: 500, y: 500, rot: 0 });
     check(checkLayout(P).length === 0, 'kontrola: rozjazd sam w sobie nie zgłasza odstępu');
+    // odnogi rozjazdu z doczepionymi torami: prosta i R9 blisko siebie przy ostrzu – to nie problem
+    const Q = new Layout(); const qa = Q.add('55200', { x: 300, y: 500, rot: 0 }); const qw = Q.attach('55220', 0, Q.portOf(qa, 1)); Q.attach('55200', 0, Q.portOf(qw, 1)); Q.attach('55219', 0, Q.portOf(qw, 2));
+    check(checkLayout(Q).length === 0, 'kontrola: tory za rozjazdem (prosta + R9) nie zgłaszają odstępu (' + checkLayout(Q).map((q) => q.type).join(',') + ')');
+    // ...ale dwa równoległe tory 30 mm od siebie, które nie mają wspólnego sąsiada – tak
+    const S2 = new Layout(); S2.add('55200', { x: 300, y: 800, rot: 0 }); S2.add('55200', { x: 300, y: 830, rot: 0 });
+    check(checkLayout(S2).some((q) => q.type === 'spacing'), 'kontrola: równoległe 30 mm bez wspólnego sąsiada → odstęp');
+  }
+
+  // ---- jazda próbna (Node) ----
+  {
+    const { Train, toggleSwitch } = await import('../js/train.js');
+    const L = new Layout(); const a = L.add('55200', { x: 0, y: 0, rot: 0 }); const wl = L.attach('55220', 0, L.portOf(a, 1)); L.attach('55200', 0, L.portOf(wl, 1)); L.attach('55219', 0, L.portOf(wl, 2));
+    const T = new Train(L); T.place(a, 0); T.running = true; T.speed = 200;
+    for (let i = 0; i < 20; i++) T.step(0.1);
+    check(T.pos.piece.id === '55200' && T.pos.piece !== a && Math.abs(T.pose().y) < 0.01, 'jazda: rozjazd w położeniu 0 → tor prosty');
+    for (let i = 0; i < 40; i++) T.step(0.1);
+    check(!T.running && Math.abs(T.pose().x - (239.07 * 3)) < 0.5, `jazda: ślepy koniec zatrzymuje (x=${T.pose().x.toFixed(0)})`);
+    check(toggleSwitch(wl) === 1 && toggleSwitch(a) === null, 'jazda: przełączenie rozjazdu (prosta nie ma stanu)');
+    const T2 = new Train(L); T2.place(a, 0); T2.running = true; T2.speed = 200; for (let i = 0; i < 25; i++) T2.step(0.1);
+    check(T2.pos.piece.id === '55219' && T2.carPoses().length === 2, 'jazda: rozjazd w położeniu 1 → odgałęzienie, 2 wagony za lokomotywą');
+    T2.reverse(); T2.running = true; for (let i = 0; i < 60; i++) T2.step(0.1);
+    check(!T2.running && T2.pos.piece === a && T2.pose().x < 1, 'jazda: nawrót i powrót do początku');
+    // pętla: pociąg jedzie bez końca (owal)
+    const M = new Layout(); let p = M.add('55200', { x: 500, y: 100, rot: 0 }); let cur = M.portOf(p, 1);
+    for (const id of ['55200', '55200', '55212', '55212', '55212', '55212', '55212', '55212', '55200', '55200', '55200', '55212', '55212', '55212', '55212', '55212', '55212']) { p = M.attach(id, 0, cur); cur = M.portOf(p, 1); }
+    const T3 = new Train(M); T3.place(M.pieces[0], 0); T3.running = true; T3.speed = 1000; for (let i = 0; i < 100; i++) T3.step(0.1);
+    check(T3.running && T3.dist > 9000, `jazda: na owalu bez końca (${T3.dist.toFixed(0)} mm)`);
   }
 
   // obrotnica + wysokości (model, Node)
@@ -452,6 +479,21 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.screenshot({ path: path.join(OUT, 'desktop-problems.png') });
   await page.click('#menu button[data-close]');
   check(ui.badge === '1' && !ui.hidden && ui.n === 1 && ui.markers === 1 && listed === 1, `kontrola UI: badge ${ui.badge}, ${listed} na liście, ${ui.markers} znacznik`);
+
+  // jazda w UI: tryb, start, pozycja się zmienia, stuknięcie rozjazdu przełącza
+  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); const { insert, editor, layout } = window.__routelayout; const a = insert('55200'); editor.cursor = { uid: a.uid, idx: 1 }; insert('55220'); insert('55200'); editor.cursor = { uid: layout.pieces[1].uid, idx: 2 }; insert('55219'); editor.cursor = { uid: a.uid, idx: 0 }; });
+  await page.click('#btn-train');
+  const t0 = await page.evaluate(() => ({ mode: window.__routelayout.editor.mode, bar: !document.getElementById('train-bar').classList.contains('hidden'), x: window.__routelayout.train.pose().x }));
+  await page.click('#btn-play'); await page.waitForTimeout(600);
+  const t1 = await page.evaluate(() => ({ x: window.__routelayout.train.pose().x, running: window.__routelayout.train.running, meshes: window.__routelayout.view3d.trainGroup.children.length }));
+  await page.click('#btn-play');
+  // stuknij rozjazd (element 2) na planie
+  const wlPx = await page.evaluate(() => { const { editor, layout } = window.__routelayout; const wl = layout.pieces[1]; const p = editor.toScreen(wl.x + 120, wl.y); const r = editor.canvas.getBoundingClientRect(); return { x: r.left + p.x, y: r.top + p.y }; });
+  await page.mouse.click(wlPx.x, wlPx.y);
+  const sw = await page.evaluate(() => window.__routelayout.layout.pieces[1].sw);
+  await page.screenshot({ path: path.join(OUT, 'desktop-train.png') });
+  await page.click('#btn-train');
+  check(t0.mode === 'train' && t0.bar && t1.x > t0.x + 30 && t1.running && t1.meshes === 3 && sw === 1, `jazda UI: start x ${t0.x.toFixed(0)} → ${t1.x.toFixed(0)}, ${t1.meshes} bryły w 3D, rozjazd przełożony (sw=${sw})`);
 
   // i18n: przełączenie na DE zmienia teksty UI i nazwy w katalogu
   const de = await page.evaluate(() => {

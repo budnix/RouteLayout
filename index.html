@@ -31,6 +31,10 @@
     <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
     <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+    <symbol id="i-train" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="12" rx="3"/><path d="M4 10h16M8 20l-2 2M16 20l2 2M9 16v4M15 16v4"/><circle cx="9" cy="13" r="0.8"/><circle cx="15" cy="13" r="0.8"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 9h13l-3-3M20 15H7l3 3"/></symbol>
     <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M20 20H8.5L3.6 15.1a2 2 0 0 1 0-2.8l8.5-8.5a2 2 0 0 1 2.8 0l5.7 5.7a2 2 0 0 1 0 2.8L14 19"/><path d="M6.5 12.5l6 6"/></symbol>
   </svg>
   <header class="topbar">
@@ -57,6 +61,13 @@
         <button id="btn-zoom-out" class="hud-btn"><svg class="ic"><use href="#i-minus"/></svg></button>
         <button id="btn-draw" class="hud-btn" data-i18n-title="draw.toggle"><svg class="ic"><use href="#i-pencil"/></svg></button>
         <button id="btn-close" class="hud-btn hidden" data-i18n-title="close.btn"><svg class="ic"><use href="#i-link"/></svg></button>
+        <button id="btn-train" class="hud-btn" data-i18n-title="train.toggle"><svg class="ic"><use href="#i-train"/></svg></button>
+      </div>
+      <div id="train-bar" class="draw-bar hidden">
+        <button id="btn-play" class="primary" data-i18n-title="train.play"><svg class="ic"><use href="#i-play"/></svg></button>
+        <button id="btn-reverse" data-i18n-title="train.reverse"><svg class="ic"><use href="#i-swap"/></svg></button>
+        <label class="chk speed"><input id="in-speed" type="range" min="20" max="600" step="10" value="150"> <span id="speed-label"></span></label>
+        <span class="hint" data-i18n="train.hint"></span>
       </div>
       <div id="draw-bar" class="draw-bar hidden">
         <label class="chk"><input id="chk-grid" type="checkbox"> <span data-i18n="draw.grid"></span></label>

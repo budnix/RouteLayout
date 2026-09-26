@@ -3,6 +3,7 @@
 
 import { BY_ID, GAUGE, geoOf } from './catalog.js';
 import { SCENERY, drawScenery2D } from './scenery.js';
+import { activeRoutePts, LOCO_LEN, WAGON_LEN, CAR_W } from './train.js';
 import { Layout, norm } from './layout.js';
 
 const d2r = (d) => (d * Math.PI) / 180;
@@ -25,6 +26,7 @@ export class Editor2D {
     this.aidGrid = { enabled: false, size: 50 };
     this.normalizer = null;        // fn(points) -> points | null; normalizacja kreski po puszczeniu palca
     this.problems = [];            // znaczniki kontroli wykonalności { type, x, y }
+    this.train = null;             // symulacja jazdy (Train) – rysowana w trybie 'train'
     this.listeners = new Set();
     this.dpr = Math.min(devicePixelRatio || 1, 3);
 
@@ -41,7 +43,7 @@ export class Editor2D {
   }
 
   on(fn) { this.listeners.add(fn); }
-  emit(kind) { for (const fn of this.listeners) fn(kind, this); }
+  emit(kind, payload) { for (const fn of this.listeners) fn(kind, this, payload); }
 
   // ---- widok ----
   resize() {
@@ -171,6 +173,7 @@ export class Editor2D {
     }
     const w = this.toWorld(p.x, p.y);
     if (this.mode === 'draw') { this.stroke = [[w.x, w.y]]; this.drag = { start: p, moved: false, draw: true }; return; }
+    if (this.mode === 'train') { const piece = this.layout.hitTest(w.x, w.y, Math.max(14 / this.view.scale, 10)); this.drag = { start: p, moved: false, piece: null, tapPiece: piece, ox: this.view.ox, oy: this.view.oy }; return; }
     const tol = 14 / this.view.scale; // ~14 px
     const port = this.nearestOpenPort(w, tol);
     const piece = this.layout.hitTest(w.x, w.y, Math.max(tol, 10));
@@ -233,6 +236,7 @@ export class Editor2D {
     }
     if (!d.moved) {
       // tap
+      if (this.mode === 'train') { if (d.tapPiece) this.emit('switch', d.tapPiece); return; }
       if (d.rim) { const port = this.layout.addRimPort(d.rim.tt, d.rim.angle); if (port) this.setCursor(port); return; }
       if (d.port) { this.setCursor(d.port); this.selected = d.port.piece; this.selectedScenery = null; this.emit('select'); }
       else if (!d.piece && !d.scen) { this.selected = null; this.selectedScenery = null; this.emit('select'); this.draw(); }
@@ -407,6 +411,28 @@ export class Editor2D {
       for (const st of strokes) { tracePath(st); ctx.stroke(); }
       ctx.lineWidth = 2 / s; ctx.strokeStyle = getCSS('--c-accent', '#ff7a1a');
       for (const st of strokes) { tracePath(st); ctx.stroke(); }
+    }
+
+    // tryb jazdy: aktywne trasy rozjazdów i pociąg
+    if (this.mode === 'train') {
+      ctx.lineCap = 'round';
+      for (const piece of this.layout.pieces) {
+        const g = BY_ID[piece.id].geo;
+        if (!g.routes || g.routes.length < 2) continue;
+        const pts = activeRoutePts(piece);
+        if (!pts) continue;
+        tracePath(pts); ctx.strokeStyle = 'rgba(46,158,91,0.85)'; ctx.lineWidth = 6; ctx.stroke();
+      }
+      if (this.train && this.train.pos) {
+        const car = (pose, L, color) => {
+          ctx.save(); ctx.translate(pose.x, pose.y); ctx.rotate(d2r(pose.a));
+          ctx.fillStyle = color; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-L / 2, -CAR_W / 2, L, CAR_W, 5) : ctx.rect(-L / 2, -CAR_W / 2, L, CAR_W); ctx.fill(); ctx.stroke();
+          ctx.restore();
+        };
+        for (const w of this.train.carPoses()) car(w, WAGON_LEN, '#3b6fb6');
+        const lp = this.train.pose(); if (lp) car(lp, LOCO_LEN, '#c62828');
+      }
     }
 
     // znaczniki problemów

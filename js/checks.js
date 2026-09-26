@@ -34,7 +34,19 @@ export function checkLayout(layout) {
 
   // 3–5. relacje między elementami (bez par połączonych bezpośrednio)
   const connected = new Set();
-  for (const p of layout.ports()) if (p.mate) { connected.add(key(p.piece, p.mate.piece)); }
+  const neighbours = new Map();   // piece -> [{ piece: sąsiad, x, y }] (port łączący)
+  for (const p of layout.ports()) if (p.mate) {
+    connected.add(key(p.piece, p.mate.piece));
+    if (!neighbours.has(p.piece)) neighbours.set(p.piece, []);
+    neighbours.get(p.piece).push({ piece: p.mate.piece, x: p.x, y: p.y });
+  }
+  // A i B rozchodzą się z tego samego elementu (np. odnogi rozjazdu): bliskość przy jego porcie jest naturalna
+  const sharedJointNear = (A, B, x, y) => {
+    for (const na of neighbours.get(A) || []) for (const nb of neighbours.get(B) || []) {
+      if (na.piece === nb.piece && Math.hypot(na.x - x, na.y - y) < 300 && Math.hypot(nb.x - x, nb.y - y) < 300) return true;
+    }
+    return false;
+  };
   const boxes = segs.map((s) => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const [x, y] of s.pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); } return [x0 - MIN_SPACING, y0 - MIN_SPACING, x1 + MIN_SPACING, y1 + MIN_SPACING]; });
   const reported = new Set();
   for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
@@ -54,6 +66,7 @@ export function checkLayout(layout) {
     const k = key(A.piece, B.piece);
     if (reported.has(k)) continue;
     const x = (best.p[0] + best.q[0]) / 2, y = (best.p[1] + best.q[1]) / 2;
+    if (dz <= SAME_LEVEL && !polylinesCross(A.pts, B.pts) && sharedJointNear(A.piece, B.piece, x, y)) continue;
     if (dz > SAME_LEVEL) {
       if (dz < MIN_CLEARANCE && polylinesCross(A.pts, B.pts)) { reported.add(k); out.push({ type: 'clearance', x, y, pieces: [A.piece, B.piece], params: { dz: Math.round(dz), min: MIN_CLEARANCE } }); }
       continue;

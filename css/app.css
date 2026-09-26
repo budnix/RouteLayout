@@ -110,6 +110,11 @@ select, input[type=text], input[type=number] {
   background: var(--c-panel); border: 1px solid var(--c-border); border-radius: 12px; padding: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.15);
 }
 .draw-bar .primary { margin-left: auto; }
+#train-bar .primary { margin-left: 0; width: 44px; padding: 0; }
+#train-bar .speed { gap: 8px; }
+#train-bar input[type=range] { width: 120px; }
+#train-bar .hint { flex: 1 0 100%; }
+.hud-btn.active { background: var(--c-accent); color: #fff; }
 .chk { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 0 6px; min-height: 40px; }
 .chk input { width: 18px; height: 18px; }
 #canvas2d.drawing { cursor: crosshair; }
