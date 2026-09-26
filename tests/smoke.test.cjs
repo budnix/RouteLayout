@@ -177,6 +177,30 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     check(r5.ok && r5.pieces.length === 4 && r5.pieces.filter((p) => p.id === '55200').length === 3 && r5.pieces.some((p) => p.id === '55206'), 'domykanie: 748 mm → 3×G239 + G31 (4 elementy) (' + r5.pieces.map((p) => p.id).join(',') + ')');
   }
 
+  // ---- kontrola wykonalności (Node) ----
+  {
+    const { checkLayout } = await import('../js/checks.js');
+    const L = new Layout();
+    const a = L.add('55200', { x: 300, y: 300, rot: 0 }); L.setGrade(a, 5);
+    L.add('55200', { x: 800, y: 500, rot: 0 }); L.add('55200', { x: 900, y: 400, rot: 90 });
+    L.add('55200', { x: 1300, y: 500, rot: 0 }); L.add('55200', { x: 1400, y: 400, rot: 90, z: 30 });
+    L.add('55200', { x: 300, y: 800, rot: 0 }); L.add('55200', { x: 300, y: 830, rot: 0 });
+    L.add('55200', { x: 1700, y: 990, rot: 0 });
+    const types = checkLayout(L).map((p) => p.type).sort();
+    check(types.join() === 'clearance,collision,edge,grade,spacing', 'kontrola: nachylenie, kolizja, prześwit, odstęp, krawędź – po jednym (' + types.join(',') + ')');
+    const M = new Layout(); let p = M.add('55200', { x: 500, y: 100, rot: 0 }); let cur = M.portOf(p, 1);
+    for (const id of ['55200', '55200', '55212', '55212', '55212', '55212', '55212', '55212', '55200', '55200', '55200', '55212', '55212', '55212', '55212', '55212', '55212']) { p = M.attach(id, 0, cur); cur = M.portOf(p, 1); }
+    check(checkLayout(M).length === 0, 'kontrola: poprawny owal bez problemów');
+    // most: tor 70 mm nad innym – prześwit OK, brak problemu; 40 mm – problem
+    const N = new Layout(); N.add('55200', { x: 500, y: 500, rot: 0 }); N.add('55200', { x: 600, y: 400, rot: 90, z: 70 });
+    check(checkLayout(N).length === 0, 'kontrola: wiadukt 70 mm nad torem jest OK');
+    const O = new Layout(); O.add('55200', { x: 500, y: 500, rot: 0 }); const hi = O.add('55200', { x: 600, y: 400, rot: 90, z: 40 });
+    check(checkLayout(O).some((q) => q.type === 'clearance' && q.params.dz === 40) && hi, 'kontrola: wiadukt 40 mm → prześwit za mały');
+    // rozjazd: ramiona są jednym elementem, więc bliskość odnogi i prostej nie jest problemem
+    const P = new Layout(); P.add('55220', { x: 500, y: 500, rot: 0 });
+    check(checkLayout(P).length === 0, 'kontrola: rozjazd sam w sobie nie zgłasza odstępu');
+  }
+
   // obrotnica + wysokości (model, Node)
   {
     const L = new Layout();
@@ -418,6 +442,16 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.click('#btn-close'); await page.waitForTimeout(200);
   const closed = await page.evaluate(() => ({ open: window.__routelayout.layout.openPorts().length, n: window.__routelayout.layout.pieces.length, toast: document.getElementById('toast').textContent }));
   check(closeVisible && closed.open === 0 && closed.n === 18, `domykanie UI: przycisk widoczny, owal domknięty (${closed.toast})`);
+
+  // kontrola w UI: krzyżujące się tory → badge na menu, lista w menu, znacznik na planie
+  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); const { layout } = window.__routelayout; layout.add('55200', { x: 800, y: 500, rot: 0 }); layout.add('55200', { x: 900, y: 400, rot: 90 }); });
+  await page.waitForTimeout(400);
+  const ui = await page.evaluate(() => ({ badge: document.getElementById('menu-badge').textContent, hidden: document.getElementById('menu-badge').classList.contains('hidden'), n: window.__routelayout.problems().length, markers: window.__routelayout.editor.problems.length }));
+  await page.click('#btn-menu');
+  const listed = await page.evaluate(() => document.querySelectorAll('#problems .prob').length);
+  await page.screenshot({ path: path.join(OUT, 'desktop-problems.png') });
+  await page.click('#menu button[data-close]');
+  check(ui.badge === '1' && !ui.hidden && ui.n === 1 && ui.markers === 1 && listed === 1, `kontrola UI: badge ${ui.badge}, ${listed} na liście, ${ui.markers} znacznik`);
 
   // i18n: przełączenie na DE zmienia teksty UI i nazwy w katalogu
   const de = await page.evaluate(() => {

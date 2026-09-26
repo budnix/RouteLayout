@@ -24,6 +24,7 @@ export class Editor2D {
     this.stroke = null;            // bieżąca kreska
     this.aidGrid = { enabled: false, size: 50 };
     this.normalizer = null;        // fn(points) -> points | null; normalizacja kreski po puszczeniu palca
+    this.problems = [];            // znaczniki kontroli wykonalności { type, x, y }
     this.listeners = new Set();
     this.dpr = Math.min(devicePixelRatio || 1, 3);
 
@@ -406,6 +407,18 @@ export class Editor2D {
       for (const st of strokes) { tracePath(st); ctx.stroke(); }
       ctx.lineWidth = 2 / s; ctx.strokeStyle = getCSS('--c-accent', '#ff7a1a');
       for (const st of strokes) { tracePath(st); ctx.stroke(); }
+    }
+
+    // znaczniki problemów
+    if (this.problems.length) {
+      const r = Math.max(9 / s, 7);
+      for (const pr of this.problems) {
+        ctx.beginPath(); ctx.arc(pr.x, pr.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = pr.type === 'edge' || pr.type === 'grade' ? 'rgba(224,160,32,0.95)' : 'rgba(214,58,58,0.95)'; ctx.fill();
+        ctx.lineWidth = 1.5 / s; ctx.strokeStyle = '#fff'; ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.font = `bold ${r * 1.4}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('!', pr.x, pr.y + r * 0.05);
+      }
     }
 
     // otwarte porty

@@ -162,6 +162,17 @@ input[type=color] { width: 56px; min-height: 40px; padding: 2px 4px; border: 1px
 }
 @media (min-width: 900px) { .toast { bottom: 20px; } }
 
+/* problemy */
+.badge { display: inline-block; min-width: 20px; padding: 0 6px; border-radius: 10px; background: var(--c-danger); color: #fff; font-size: 12px; text-align: center; vertical-align: middle; }
+.badge.ok { background: #2e9e5b; }
+.menu-badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--c-danger); color: #fff; font-size: 11px; line-height: 18px; font-weight: 700; }
+#btn-menu { position: relative; }
+.problems { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.problems .prob { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 8px; background: var(--c-bg); cursor: pointer; }
+.problems .prob .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c-danger); flex: 0 0 auto; }
+.problems .prob.warn .dot { background: #e0a020; }
+.problems .none { color: var(--c-muted); font-size: 13px; }
+
 /* arkusz menu */
 .sheet { position: fixed; inset: 0; z-index: 20; }
 .sheet-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.4); }

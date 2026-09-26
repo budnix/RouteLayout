@@ -5,6 +5,7 @@ import { View3D } from './view3d.js';
 import { t, pieceName, applyDom, setLang, getLang, LANGS } from './i18n.js';
 import { fitStrokes, normalizeStroke } from './fitter.js';
 import { closeGap, pickPartner } from './closer.js';
+import { checkLayout } from './checks.js';
 import { SCENERY, SCENERY_GROUPS, sceneryName, drawScenery2D } from './scenery.js';
 
 const $ = (id) => document.getElementById(id);
@@ -166,7 +167,7 @@ $('btn-zoom-out').addEventListener('click', () => editor.zoomAt(editor.canvas.cl
 $('btn-fit3d').addEventListener('click', () => view3d.fit());
 
 // hak diagnostyczny (testy, konsola)
-window.__routelayout = { layout, editor, view3d, insert, closeFromCursor };
+window.__routelayout = { layout, editor, view3d, insert, closeFromCursor, problems: () => problems };
 
 // ---- tryb rysowania ----------------------------------------------------------
 const gridPrefs = (() => { try { return JSON.parse(localStorage.getItem('routelayout.grid')) || {}; } catch { return {}; } })();
@@ -218,6 +219,37 @@ function finishDrawing() {
   editor.emit('select'); editor.emit('cursor'); editor.draw();
 }
 // przycisk zawsze aktywny – brak kresek tłumaczy toast, a nie martwy przycisk
+
+// ---- kontrola wykonalności --------------------------------------------------------
+let problems = [];
+let checkTimer = null;
+function runChecks() {
+  try { problems = checkLayout(layout); } catch (err) { console.error('checks', err); problems = []; }
+  editor.problems = problems;
+  const badge = $('menu-badge');
+  badge.textContent = String(problems.length);
+  badge.classList.toggle('hidden', problems.length === 0);
+  editor.draw();
+}
+layout.onChange((kind) => { if (kind !== 'change') return; clearTimeout(checkTimer); checkTimer = setTimeout(runChecks, 120); });
+function renderProblems() {
+  const box = $('problems'); box.innerHTML = '';
+  const cnt = $('problems-count'); cnt.textContent = problems.length ? String(problems.length) : '✓'; cnt.classList.toggle('ok', !problems.length);
+  if (!problems.length) { box.innerHTML = `<div class="none">${t('prob.none')}</div>`; return; }
+  for (const pr of problems) {
+    const row = document.createElement('div');
+    row.className = 'prob' + (pr.type === 'edge' || pr.type === 'grade' ? ' warn' : '');
+    row.innerHTML = `<span class="dot"></span><span>${t('prob.' + pr.type, pr.params)}</span>`;
+    row.addEventListener('click', () => { menu.classList.add('hidden'); editor.selected = pr.pieces[0]; editor.selectedScenery = null; editor.emit('select'); centerOn(pr.x, pr.y); });
+    box.append(row);
+  }
+}
+function centerOn(x, y) {
+  const W = editor.canvas.clientWidth, H = editor.canvas.clientHeight;
+  editor.view.scale = Math.max(editor.view.scale, 0.6);
+  editor.view.ox = W / 2 - x * editor.view.scale; editor.view.oy = H / 2 - y * editor.view.scale;
+  editor.draw();
+}
 
 // ---- domykanie pętli ----------------------------------------------------------
 const listIds = (pieces) => pieces.map((p) => BY_ID[p.id].code).join(' + ');
@@ -295,6 +327,7 @@ $('btn-menu').addEventListener('click', () => { refreshMenu(); menu.classList.re
 menu.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', () => menu.classList.add('hidden')));
 
 function refreshMenu() {
+  renderProblems();
   $('in-name').value = layout.name;
   $('in-w').value = layout.board.w; $('in-h').value = layout.board.h;
   $('in-board-color').value = layout.board.color || '#5f8f4a';
@@ -356,6 +389,7 @@ if (!Layout.loadSaved(layout)) { layout.name = t('default.name'); demo(); layout
 editor.fit();
 setMode((() => { try { return localStorage.getItem('routelayout.mode') || (innerWidth >= 900 ? 'split' : '2d'); } catch { return '2d'; } })());
 view3d.fit();
+runChecks();
 
 /** Pętla startowa: pokazuje, jak działa auto-rysowanie. */
 function demo() {

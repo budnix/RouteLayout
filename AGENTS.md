@@ -35,6 +35,7 @@ Reviewers: a PR that changes any of the above without touching `AGENTS.md` is in
 | `js/fitter.js` | Sketch → pieces. `prepareStroke`, greedy fitter (`fitGreedy`), normalised pipeline (`fitNormalized`), `fitStrokes` (entry), `normalizeStroke` (live, on pointer-up), turnout placement, attachment to open ends. |
 | `js/normalize.js` | Stroke → primitives (line/arc): curvature segmentation, circle/line fits, boundary refinement at the tangent point, wobble collapsing, snapping to the PIKO grid, `idealPath`, DP decomposition of straights, `chain`. |
 | `js/closer.js` | Loop closing: `closeGap(portA, portB)` searches 1–4 catalog pieces (straights + curves both ways) whose chain from A lands on B within 1.5 mm / 1.5°; exactness is a hard priority, piece count and "small pieces" only break ties; otherwise reports the best miss ("7.3 mm off"). `pickPartner` chooses the open end facing the cursor. Used by the HUD link button and `autoClose` after a sketch. |
+| `js/checks.js` | Feasibility checks (`checkLayout`): grade > 3.5 %, clearance < 55 mm between crossing tracks on different levels, same-level collision (axes intersect, pieces not directly connected), axis spacing < 45 mm, track outside/within 20 mm of the board edge. Runs debounced after every change; results show as markers on the plan, a list in the menu and a badge on the menu button. Constants at the top of the file. |
 | `js/scenery.js` | Scenery catalog (trees, buildings, roads, pond, hill…): 2D drawing + procedural 3D builders. `bumpGeometry` (hill / pond bowl). |
 | `js/view3d.js` | three.js scene: baseboard (top plate with pond holes), rails/sleepers/ballast ribbons following heights, piers, turntable pit, scenery. Renders on demand. |
 | `js/main.js` | UI wiring: palette, selection bar, menu, sketch bar, language, side panel, toasts. Exposes `window.__routelayout = { layout, editor, view3d, insert }` for tests and the console. |
@@ -116,7 +117,7 @@ npm test                            # tests/smoke.test.cjs; screenshots in test-
 
 - Loop closing (`closer.js`) tries up to 4 pieces; gaps needing more (or a curve rearrangement) report the best miss and leave it to the user.
 - Only WL/WR turnouts are inferred from sketches (curved turnouts, DKW, Y are not).
-- Heights have no clearance check (a track 30 mm above another is accepted; H0 needs ~55–60 mm).
+- The clearance check uses the axis distance only (no rolling-stock envelope); 55 mm is a rule of thumb for H0 double-deck stock.
 - The turntable is generic (`TT`, adjustable ⌀), not a PIKO article; the bill of materials lists it as `TT`.
 - Article number 55215 (R1 7.5°) is flagged `verified: false` in the catalog.
 - No service worker; offline use relies on browser cache only.

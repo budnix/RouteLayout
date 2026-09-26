@@ -44,7 +44,7 @@
         <button id="tab-3d" role="tab">3D</button>
         <button id="tab-split" role="tab" class="wide-only">2D + 3D</button>
       </div>
-      <button id="btn-menu" class="icon" data-i18n-title="top.menu"><svg class="ic"><use href="#i-menu"/></svg></button>
+      <button id="btn-menu" class="icon" data-i18n-title="top.menu"><svg class="ic"><use href="#i-menu"/></svg><span id="menu-badge" class="menu-badge hidden"></span></button>
     </div>
   </header>
 
@@ -135,6 +135,8 @@
         <button id="btn-png" data-i18n="menu.png"></button>
         <button id="btn-clear" class="danger" data-i18n="menu.clear"></button>
       </div>
+      <h2><span data-i18n="menu.problems"></span> <span id="problems-count" class="badge"></span></h2>
+      <div id="problems" class="problems"></div>
       <h2 data-i18n="menu.bom"></h2>
       <div id="bom" class="bom"></div>
       <p class="hint" data-i18n="menu.bomHint"></p>
