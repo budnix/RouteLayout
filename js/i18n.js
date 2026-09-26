@@ -5,6 +5,7 @@ const STORAGE_KEY = 'railsketch.lang';
 
 const DICT = {
   pl: {
+    'group.template': 'Szablony', 'tpl.pcs': 'szt.', 'tpl.sidingLeft': 'Mijanka w lewo', 'tpl.sidingRight': 'Mijanka w prawo', 'tpl.crossoverLeft': 'Przejście na tor równoległy w lewo', 'tpl.crossoverRight': 'Przejście na tor równoległy w prawo',
     'menu.stock': 'Tabor', 'menu.stockHint': 'Obrys wagonów do kontroli odstępów między torami na łukach', 'stock.short': 'Krótki (2-osiowe, ≤ 165 mm)', 'stock.standard': 'Standardowy (1:100, ≈ 240 mm)', 'stock.long': 'Długi (1:87, 26,4 m ≈ 303 mm)', 'prob.envelope': 'Obrysy wagonów zachodzą na siebie: osie {d} mm, potrzeba {min} mm (R{r})', 'prob.radius': 'Promień {r} mm za mały dla wybranego taboru (min. {min} mm)',
     'levels.toggle': 'Poziomy: pokaż tylko wybraną wysokość', 'levels.all': 'Wszystkie poziomy ({n})', 'levels.one': 'Poziom {z} mm', 'levels.up': 'Poziom wyżej', 'levels.down': 'Poziom niżej', 'levels.hint': 'Elementy spoza poziomu są wyszarzone i nieaktywne. Poziomy wynikają z wysokości torów.',
     'menu.importParts': 'Import listy części', 'menu.importPartsHint': 'Lista części z AnyRail, SCARM lub arkusza (CSV/TXT) – ilości trafiają do kolumny „mam”', 'parts.done': 'Wczytano {n} artykułów ({q} szt.) jako „mam”.', 'parts.none': 'Nie znaleziono numerów artykułów PIKO (55xxx) ani kodów (G239, R2…) w pliku.', 'parts.unknown': 'Nierozpoznane wiersze: {n}.',
@@ -57,6 +58,7 @@ const DICT = {
     'group.flex': 'Flex', 'group.accessory': 'Akcesoria',
   },
   en: {
+    'group.template': 'Templates', 'tpl.pcs': 'pcs', 'tpl.sidingLeft': 'Passing siding, left', 'tpl.sidingRight': 'Passing siding, right', 'tpl.crossoverLeft': 'Crossover to parallel track, left', 'tpl.crossoverRight': 'Crossover to parallel track, right',
     'menu.stock': 'Rolling stock', 'menu.stockHint': 'Vehicle envelope used to check track spacing on curves', 'stock.short': 'Short (2-axle, ≤ 165 mm)', 'stock.standard': 'Standard (1:100, ≈ 240 mm)', 'stock.long': 'Long (1:87, 26.4 m ≈ 303 mm)', 'prob.envelope': 'Vehicle envelopes overlap: centres {d} mm apart, {min} mm needed (R{r})', 'prob.radius': 'Radius {r} mm too tight for the selected stock (min {min} mm)',
     'levels.toggle': 'Levels: show only one height', 'levels.all': 'All levels ({n})', 'levels.one': 'Level {z} mm', 'levels.up': 'Level up', 'levels.down': 'Level down', 'levels.hint': 'Pieces outside the level are greyed out and inactive. Levels follow the track heights.',
     'menu.importParts': 'Import part list', 'menu.importPartsHint': 'Part list from AnyRail, SCARM or a spreadsheet (CSV/TXT) – quantities go into the "have" column', 'parts.done': 'Loaded {n} articles ({q} pcs.) as "have".', 'parts.none': 'No PIKO article numbers (55xxx) or codes (G239, R2…) found in the file.', 'parts.unknown': 'Unrecognised lines: {n}.',
@@ -109,6 +111,7 @@ const DICT = {
     'group.flex': 'Flex', 'group.accessory': 'Accessories',
   },
   de: {
+    'group.template': 'Vorlagen', 'tpl.pcs': 'Stk.', 'tpl.sidingLeft': 'Ausweichgleis links', 'tpl.sidingRight': 'Ausweichgleis rechts', 'tpl.crossoverLeft': 'Gleiswechsel zum Parallelgleis links', 'tpl.crossoverRight': 'Gleiswechsel zum Parallelgleis rechts',
     'menu.stock': 'Fahrzeuge', 'menu.stockHint': 'Fahrzeugumgrenzung für die Prüfung des Gleisabstands in Bögen', 'stock.short': 'Kurz (2-achsig, ≤ 165 mm)', 'stock.standard': 'Standard (1:100, ≈ 240 mm)', 'stock.long': 'Lang (1:87, 26,4 m ≈ 303 mm)', 'prob.envelope': 'Fahrzeugumgrenzungen überschneiden sich: Achsabstand {d} mm, nötig {min} mm (R{r})', 'prob.radius': 'Radius {r} mm zu eng für die gewählten Fahrzeuge (min. {min} mm)',
     'levels.toggle': 'Ebenen: nur eine Höhe zeigen', 'levels.all': 'Alle Ebenen ({n})', 'levels.one': 'Ebene {z} mm', 'levels.up': 'Ebene höher', 'levels.down': 'Ebene tiefer', 'levels.hint': 'Gleise außerhalb der Ebene sind ausgegraut und inaktiv. Ebenen ergeben sich aus den Gleishöhen.',
     'menu.importParts': 'Stückliste importieren', 'menu.importPartsHint': 'Stückliste aus AnyRail, SCARM oder Tabelle (CSV/TXT) – Mengen landen in der Spalte „vorhanden“', 'parts.done': '{n} Artikel ({q} Stk.) als „vorhanden“ übernommen.', 'parts.none': 'Keine PIKO-Artikelnummern (55xxx) oder Codes (G239, R2…) in der Datei gefunden.', 'parts.unknown': 'Nicht erkannte Zeilen: {n}.',

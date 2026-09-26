@@ -3,7 +3,9 @@
 
 import { CATALOG, BY_ID, sampleSegment, SYSTEMS, DEFAULT_SYSTEM, toSystem } from '../catalog.js';
 import { t, pieceName, getLang } from '../i18n.js';
+import { Layout } from '../layout.js';
 import { SCENERY, SCENERY_GROUPS, sceneryName, drawScenery2D } from '../scenery.js';
+import { TEMPLATES, buildTemplate, templateCodes, templateOutline } from '../templates.js';
 import { $, prefs } from './app.js';
 
 const PIKO_SECTIONS = ['straight', 'curve', 'turnout', 'crossing', 'flex'];
@@ -47,6 +49,17 @@ function pieceMeta(def) {
   return t('meta.len', { L: fmt(def.len || 0) });
 }
 
+/** Miniatura szablonu: obrysy wszystkich jego elementów przeskalowane do 60×34. */
+function templateIcon(key) {
+  const polys = templateOutline(key).map(({ piece, seg }) => sampleSegment(seg, 12).map(([x, y]) => { const w = Layout.localToWorld(piece, x, y); return [w.x, w.y]; }));
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const poly of polys) for (const [x, y] of poly) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+  const sc = Math.min(54 / Math.max(1, maxX - minX), 28 / Math.max(1, maxY - minY));
+  const ox = 30 - ((minX + maxX) / 2) * sc, oy = 17 - ((minY + maxY) / 2) * sc;
+  const d = polys.map((poly) => poly.map(([x, y], k) => `${k ? 'L' : 'M'}${(ox + x * sc).toFixed(1)} ${(oy + y * sc).toFixed(1)}`).join(' ')).join(' ');
+  return `<svg class="pal-icon" viewBox="0 0 60 34" aria-hidden="true"><path d="${d}"/></svg>`;
+}
+
 export function init(app) {
   const { editor } = app;
   const selEntry = $('sel-entry'), palList = $('pal-list'), palTabs = $('pal-tabs'), selSystem = $('sel-system');
@@ -83,6 +96,7 @@ export function init(app) {
       }
       return;
     }
+    if (palTab === 'piko') { section(t('group.template')); for (const key of Object.keys(TEMPLATES)) palList.append(templateRow(key)); }
     const groups = palTab === 'piko' ? PIKO_SECTIONS : ['accessory'];
     for (const g of groups) {
       const items = CATALOG.filter((p) => p.group === g && (palTab !== 'piko' || p.system === system));
@@ -98,6 +112,21 @@ export function init(app) {
     row.append(sceneryIcon(type));
     row.insertAdjacentHTML('beforeend', `<div class="pal-text"><div class="pal-title">${sceneryName(type, getLang())}</div><div class="pal-desc">${t('meta.size', { w: def.w, h: def.h })}</div></div>`);
     row.addEventListener('click', () => { noteRecent(type); editor.addScenery(type); });
+    return row;
+  }
+  /** Wstawia szablon na aktywnym końcu (albo na środku widoku), elementy w wybranym systemie torów. */
+  function insertTemplate(key) {
+    const port = editor.cursorPort();
+    const start = port ? { x: port.x, y: port.y, a: port.a, z: port.z || 0 } : (() => { const c = editor.toWorld(editor.canvas.width / editor.dpr / 2, editor.canvas.height / editor.dpr / 2); return { x: c.x, y: c.y, a: 0, z: 0 }; })();
+    const { pieces, exit } = buildTemplate(key, start);
+    const mapped = app.toCurrentSystem(pieces);
+    return editor.addTemplate(mapped, { piece: mapped[pieces.indexOf(exit.piece)], idx: exit.idx });
+  }
+  function templateRow(key) {
+    const row = document.createElement('div');
+    row.className = 'pal-item'; row.dataset.template = key; row.setAttribute('role', 'listitem');
+    row.innerHTML = `${templateIcon(key)}<div class="pal-text"><div class="pal-title">${t('tpl.' + key)}</div><div class="pal-desc">${templateCodes(key)}</div></div><div class="pal-meta">${TEMPLATES[key].steps.length} ${t('tpl.pcs')}</div>`;
+    row.addEventListener('click', () => insertTemplate(key));
     return row;
   }
   function pieceRow(def) {
@@ -134,11 +163,11 @@ export function init(app) {
   const insert = (idOrType, entry = 0) => (SCENERY[idOrType] ? editor.addScenery(idOrType) : editor.addPiece(idOrType, entry));
 
   Object.assign(app, {
-    buildList, fillEntry, fillSystems, insert,
+    buildList, fillEntry, fillSystems, insert, insertTemplate,
     /** Mapuje elementy (z dopasowania szkicu, domykania) na wybrany system torów. */
     toCurrentSystem: (pieces) => pieces.map((p) => ({ ...p, id: toSystem(p.id, system) })),
     getSystem: () => system,
     setSystem: (v) => { selSystem.value = v; selSystem.dispatchEvent(new Event('change')); },
   });
-  app.expose({ insert, recent, getSystem: app.getSystem, setSystem: app.setSystem });
+  app.expose({ insert, insertTemplate, recent, getSystem: app.getSystem, setSystem: app.setSystem });
 }

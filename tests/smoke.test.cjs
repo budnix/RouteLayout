@@ -155,6 +155,23 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     check(pa.length === 3 && pa[1].type === 'arc' && pa[1].radius.r === 421.88 && pa[1].sweep === 30 && pa[1].dir === -1, 'brzeg: R2 30° w prawo z szumem → R2 30° w prawo (' + JSON.stringify(pa.map((p) => p.type === 'arc' ? [p.radius.r, p.sweep, p.dir] : Math.round(p.L))) + ')');
   }
 
+  // ---- szablony: geometria domyka się dokładnie (Node) ----
+  {
+    const { TEMPLATES, buildTemplate } = await import('../js/templates.js');
+    for (const key of Object.keys(TEMPLATES)) {
+      const L = new Layout(); L.setBoard(3000, 2000);
+      const { pieces, exit } = buildTemplate(key, { x: 400, y: 800, a: 0 });
+      L.addMany(pieces);
+      const open = L.openPorts().length, expected = key.startsWith('siding') ? 2 : 4;
+      check(open === expected && L.pieces.length === TEMPLATES[key].steps.length, `szablon ${key}: ${L.pieces.length} elementów, ${open} otwarte końce (oczekiwano ${expected})`);
+      check(exit.x - 400 > 200 && Math.abs(exit.a) < 1e-6, `szablon ${key}: koniec toru głównego dalej na wprost (${exit.x.toFixed(1)}, ${exit.y.toFixed(1)}, ${exit.a}°)`);
+    }
+    const s = buildTemplate('sidingLeft', { x: 0, y: 0, a: 0 });
+    const L = new Layout(); L.addMany(s.pieces);
+    const sidingY = L.pieces[6].y;   // G239 toru mijankowego: oś 61,88 mm obok toru głównego
+    check(Math.abs(Math.abs(sidingY) - 61.88) < 0.05, `szablon: tor mijankowy równolegle w odległości 61,88 mm (${sidingY.toFixed(2)})`);
+  }
+
   // ---- szkic: rozjazdy łukowe i skrzyżowania (Node) ----
   {
     const { R: RAD } = await import('../js/catalog.js');
@@ -618,7 +635,7 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   // paleta-lista: klik w wiersz wstawia element, przycisk „w prawo” przy łuku daje skręt w drugą stronę
   await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); document.querySelector('#pal-tabs button[data-tab="piko"]').click(); });
   const rows = await page.evaluate(() => ({ n: document.querySelectorAll('.pal-item').length, sections: [...document.querySelectorAll('.pal-section')].map((e) => e.textContent), icons: document.querySelectorAll('.pal-item svg.pal-icon path').length }));
-  check(rows.n >= 28 && rows.sections.length === 5 && rows.icons >= 28, `paleta: ${rows.n} wierszy w ${rows.sections.length} sekcjach, miniatury SVG`);
+  check(rows.n >= 32 && rows.sections.length === 6 && rows.icons >= 32, `paleta: ${rows.n} wierszy w ${rows.sections.length} sekcjach, miniatury SVG`);
   await page.click('.pal-item[data-id="55200"]');
   await page.click('.pal-item[data-id="55212"] button[data-entry="1"]');
   const palState = await page.evaluate(() => window.__railsketch.layout.pieces.map((p) => [p.id, Math.round(p.rot)]));
@@ -754,12 +771,26 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     window.__railsketch.recent.length = 0; localStorage.removeItem('railsketch.recent');
     const sel = document.getElementById('sel-lang'); sel.value = 'de'; sel.dispatchEvent(new Event('change'));
     document.querySelector('#pal-tabs button[data-tab="piko"]').click();
-    return { tab: document.querySelector('#pal-tabs button[data-tab="piko"]').textContent, group: document.querySelector('.pal-section').textContent,
-      piece: document.querySelector('.pal-item .pal-desc').textContent, lang: document.documentElement.lang };
+    return { tab: document.querySelector('#pal-tabs button[data-tab="piko"]').textContent, group: document.querySelector('.pal-section').textContent, group2: document.querySelectorAll('.pal-section')[1].textContent,
+      piece: document.querySelector('.pal-item[data-id] .pal-desc').textContent, tpl: document.querySelector('.pal-item[data-template] .pal-title').textContent, lang: document.documentElement.lang };
   });
-  check(de.lang === 'de' && de.tab.includes('PIKO') && de.group === 'Gerade Gleise' && de.piece.includes('Gerades Gleis'), 'i18n: przełączenie na DE tłumaczy UI i katalog');
+  check(de.lang === 'de' && de.tab.includes('PIKO') && de.group === 'Vorlagen' && de.group2 === 'Gerade Gleise' && de.piece.includes('Gerades Gleis') && de.tpl.includes('Ausweichgleis'), 'i18n: przełączenie na DE tłumaczy UI, szablony i katalog');
   const pl = await page.evaluate(() => { const sel = document.getElementById('sel-lang'); sel.value = 'pl'; sel.dispatchEvent(new Event('change')); return document.querySelector('#pal-tabs button[data-tab="scenery"]').textContent; });
   check(pl.includes('Sceneria'), 'i18n: powrót do PL');
+
+  // ---- szablony w palecie: wiersz, wstawienie na aktywnym końcu, jeden krok undo ----
+  {
+    await page.evaluate(() => { const { layout, editor } = window.__railsketch; editor.cursor = null; editor.selected = null; layout.clear(); const a = layout.add('55200', { x: 300, y: 500, rot: 0 }); editor.cursor = { uid: a.uid, idx: 1 }; editor.emit('cursor'); layout.undoStack.length = 0; });
+    await page.click('#pal-tabs button[data-tab="piko"]'); await page.waitForTimeout(100);
+    const rows = await page.locator('#pal-list .pal-item[data-template]').count();
+    await page.click('#pal-list .pal-item[data-template="sidingLeft"]'); await page.waitForTimeout(200);
+    const st = await page.evaluate(() => { const { layout, editor } = window.__railsketch; return { n: layout.pieces.length, open: layout.openPorts().length, undo: layout.undoStack.length, cursor: !!editor.cursorPort() }; });
+    check(rows === 4 && st.n === 9 && st.open === 2 && st.undo === 1 && st.cursor, `szablon UI: 4 wiersze, mijanka doklejona do końca (9 elementów, 2 otwarte, 1 krok undo) ${JSON.stringify(st)}`);
+    await page.evaluate(() => window.__railsketch.layout.undo());
+    const after = await page.evaluate(() => window.__railsketch.layout.pieces.length);
+    check(after === 1, `szablon UI: cofnięcie usuwa cały szablon (${after})`);
+    await page.evaluate(() => { window.__railsketch.layout.clear(); });
+  }
 
   // ---- tabor w menu: zmiana obrysu uruchamia kontrolę ----
   {

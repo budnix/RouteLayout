@@ -135,6 +135,17 @@ export class Editor2D {
     return piece;
   }
 
+  /** Wstawia szablon (lista elementów z buildTemplate) jednym krokiem undo; kursor na koniec toru głównego. */
+  addTemplate(pieces, exit) {
+    const added = this.layout.addMany(pieces);
+    const last = exit ? added[pieces.indexOf(exit.piece)] : null;
+    this.selected = null; this.selection.clear();
+    this.cursor = last ? { uid: last.uid, idx: exit.idx } : null;
+    this.draw();
+    this.emit('select'); this.emit('cursor');
+    return added;
+  }
+
   /** Domyka bieżącą kreskę (np. gdy pointerup nie dotarł) i dodaje ją do szkicu. */
   finishStroke() {
     if (!this.stroke) return;

@@ -28,6 +28,7 @@ A web app (HTML5, ES modules, Canvas 2D + three.js) for designing H0 model railw
 - **Test run**: a train (loco + two wagons) drives along the track in 2D and 3D; tap a turnout to throw it, set the speed, reverse; it stops at dead ends — the quickest way to check that a layout actually works
 - **Feasibility check**: grades over 3.5 %, tracks crossing without a crossing piece, insufficient clearance under a bridge (< 55 mm), track centres too close (< 45 mm), vehicle envelopes overlapping on curves for the chosen rolling stock (short / standard / long coaches, with the curve overhang computed from body length and pivot distance) and curves too tight for it, track off the baseboard — markers on the plan, a list in the menu, a counter on the menu button
 - **Loop closing**: with the active end selected, the link button finds the 1–4 catalog pieces that close the gap to the facing open end exactly (or tells you how many millimetres are missing); a sketched oval is closed automatically
+- **Templates**: a passing siding or a crossover to a parallel track in one tap, with the exact PIKO geometry (the siding needs G231 + G239 + G231 between the turnouts, and it closes to the millimetre)
 - Drag pieces with a finger or mouse; nearby track ends snap together
 - **3D preview** with rails (16.5 mm gauge), sleepers, ballast, baseboard and shadows — rendered on demand to save battery
 - **Turntable** as a track element: tap anywhere on the rim to create a connection there (1° steps), drag a track onto the rim and it snaps radially, rotate the bridge, set the diameter
