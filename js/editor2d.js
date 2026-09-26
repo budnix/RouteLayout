@@ -273,7 +273,7 @@ export class Editor2D {
       if (this.stroke && this.stroke.length > 3) {
         let fixed = null;
         try { fixed = this.normalizer ? this.normalizer(this.stroke) : null; }
-        catch (err) { console.error('normalize', err); window.dispatchEvent(new CustomEvent('routelayout:error', { detail: err })); }
+        catch (err) { console.error('normalize', err); window.dispatchEvent(new CustomEvent('railsketch:error', { detail: err })); }
         this.strokes.push(fixed && fixed.length > 1 ? fixed : this.stroke);
         this.emit('sketch');
       }

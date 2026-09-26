@@ -45,7 +45,7 @@ export function init(app) {
     let result;
     try { result = fitStrokes(editor.strokes, layout, { normalize: fixPref.on }); }
     catch (err) { console.error(err); toast(t('error.generic', { msg: errMsg(err) })); return; }
-    window.__routelayout.lastFit = result;
+    window.__railsketch.lastFit = result;
     const { pieces } = result;
     if (!pieces.length) { toast(t('draw.none'), 5000); return; }
     const added = layout.addMany(app.toCurrentSystem(pieces));

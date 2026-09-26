@@ -1,7 +1,7 @@
 // Prosty i18n: słowniki PL / EN / DE, wybór języka z localStorage lub przeglądarki.
 
 export const LANGS = { pl: 'Polski', en: 'English', de: 'Deutsch' };
-const STORAGE_KEY = 'routelayout.lang';
+const STORAGE_KEY = 'railsketch.lang';
 
 const DICT = {
   pl: {
@@ -9,7 +9,7 @@ const DICT = {
     'levels.toggle': 'Poziomy: pokaż tylko wybraną wysokość', 'levels.all': 'Wszystkie poziomy ({n})', 'levels.one': 'Poziom {z} mm', 'levels.up': 'Poziom wyżej', 'levels.down': 'Poziom niżej', 'levels.hint': 'Elementy spoza poziomu są wyszarzone i nieaktywne. Poziomy wynikają z wysokości torów.',
     'menu.importParts': 'Import listy części', 'menu.importPartsHint': 'Lista części z AnyRail, SCARM lub arkusza (CSV/TXT) – ilości trafiają do kolumny „mam”', 'parts.done': 'Wczytano {n} artykułów ({q} szt.) jako „mam”.', 'parts.none': 'Nie znaleziono numerów artykułów PIKO (55xxx) ani kodów (G239, R2…) w pliku.', 'parts.unknown': 'Nierozpoznane wiersze: {n}.',
     'offline.ready': 'Aplikacja zapisana w pamięci – działa też bez internetu.', 'offline.updated': 'Dostępna nowa wersja – przeładuj stronę, aby ją uruchomić.',
-    'app.title': 'RouteLayout – makiety H0 (PIKO A-Gleis)',
+    'app.title': 'RailSketch – makiety H0 (PIKO A-Gleis)',
     'app.description': 'Planer układów torów H0 na torach PIKO A-Gleis z podglądem 3D. Działa na iPadzie i iPhonie.',
     'draw.toggle': 'Tryb rysowania: szkicuj tor palcem lub myszą', 'draw.grid': 'Siatka pomocnicza', 'draw.undoStroke': 'Cofnij ostatnią kreskę',
     'draw.clear': 'Wyczyść szkic', 'draw.finish': 'Zakończ rysowanie', 'draw.hint': 'Rysuj przebieg toru. Odgałęzienie: zacznij nową kreskę na już narysowanej. Kreska zaczynająca się przy otwartym końcu toru doczepi się do niego.',
@@ -61,7 +61,7 @@ const DICT = {
     'levels.toggle': 'Levels: show only one height', 'levels.all': 'All levels ({n})', 'levels.one': 'Level {z} mm', 'levels.up': 'Level up', 'levels.down': 'Level down', 'levels.hint': 'Pieces outside the level are greyed out and inactive. Levels follow the track heights.',
     'menu.importParts': 'Import part list', 'menu.importPartsHint': 'Part list from AnyRail, SCARM or a spreadsheet (CSV/TXT) – quantities go into the "have" column', 'parts.done': 'Loaded {n} articles ({q} pcs.) as "have".', 'parts.none': 'No PIKO article numbers (55xxx) or codes (G239, R2…) found in the file.', 'parts.unknown': 'Unrecognised lines: {n}.',
     'offline.ready': 'App stored on this device – it also works offline.', 'offline.updated': 'A new version is available – reload the page to use it.',
-    'app.title': 'RouteLayout – H0 track planner (PIKO A-Gleis)',
+    'app.title': 'RailSketch – H0 track planner (PIKO A-Gleis)',
     'app.description': 'H0 model railway track planner for PIKO A-Gleis with 3D preview. Works on iPad and iPhone.',
     'draw.toggle': 'Draw mode: sketch track with finger or mouse', 'draw.grid': 'Guide grid', 'draw.undoStroke': 'Undo last stroke',
     'draw.clear': 'Clear sketch', 'draw.finish': 'Finish drawing', 'draw.hint': 'Sketch the track path. For a branch, start a new stroke on an existing one. A stroke starting at an open track end attaches to it.',
@@ -113,7 +113,7 @@ const DICT = {
     'levels.toggle': 'Ebenen: nur eine Höhe zeigen', 'levels.all': 'Alle Ebenen ({n})', 'levels.one': 'Ebene {z} mm', 'levels.up': 'Ebene höher', 'levels.down': 'Ebene tiefer', 'levels.hint': 'Gleise außerhalb der Ebene sind ausgegraut und inaktiv. Ebenen ergeben sich aus den Gleishöhen.',
     'menu.importParts': 'Stückliste importieren', 'menu.importPartsHint': 'Stückliste aus AnyRail, SCARM oder Tabelle (CSV/TXT) – Mengen landen in der Spalte „vorhanden“', 'parts.done': '{n} Artikel ({q} Stk.) als „vorhanden“ übernommen.', 'parts.none': 'Keine PIKO-Artikelnummern (55xxx) oder Codes (G239, R2…) in der Datei gefunden.', 'parts.unknown': 'Nicht erkannte Zeilen: {n}.',
     'offline.ready': 'App auf diesem Gerät gespeichert – funktioniert auch offline.', 'offline.updated': 'Neue Version verfügbar – Seite neu laden, um sie zu nutzen.',
-    'app.title': 'RouteLayout – H0-Gleisplaner (PIKO A-Gleis)',
+    'app.title': 'RailSketch – H0-Gleisplaner (PIKO A-Gleis)',
     'app.description': 'Gleisplaner für Modellbahn H0 mit PIKO A-Gleis und 3D-Vorschau. Läuft auf iPad und iPhone.',
     'draw.toggle': 'Zeichenmodus: Gleisverlauf mit Finger oder Maus skizzieren', 'draw.grid': 'Hilfsraster', 'draw.undoStroke': 'Letzten Strich zurücknehmen',
     'draw.clear': 'Skizze löschen', 'draw.finish': 'Zeichnen beenden', 'draw.hint': 'Gleisverlauf skizzieren. Abzweig: neuen Strich auf einem vorhandenen beginnen. Ein Strich, der an einem offenen Gleisende beginnt, wird dort angesetzt.',

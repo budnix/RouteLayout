@@ -5,7 +5,7 @@
 
 const VERSION = '__SW_VERSION__';
 const DEV = VERSION.startsWith('__');
-const CACHE = `routelayout-${DEV ? 'dev' : VERSION}`;
+const CACHE = `railsketch-${DEV ? 'dev' : VERSION}`;
 
 const PRECACHE = [
   './', 'index.html', 'manifest.json', 'css/app.css',

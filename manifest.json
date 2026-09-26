@@ -1,6 +1,6 @@
 {
-  "name": "RouteLayout – makiety H0",
-  "short_name": "RouteLayout",
+  "name": "RailSketch – makiety H0",
+  "short_name": "RailSketch",
   "description": "Planer układów torów H0 (PIKO A-Gleis) z podglądem 3D",
   "start_url": "./",
   "display": "standalone",

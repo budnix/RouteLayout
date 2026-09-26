@@ -13,7 +13,7 @@ const SNAP_ANG = 1.0;    // stopnie
 const SNAP_Z = 3;        // mm – różnica wysokości, przy której porty jeszcze się łączą
 const LEVEL_GAP = 30;    // mm – większa przerwa między wysokościami końców = osobny poziom
 const RIM_TOL = 14;      // mm – tolerancja dociągania do obrzeża obrotnicy
-const STORAGE_KEY = 'routelayout.v1';
+const STORAGE_KEY = 'railsketch.v1';
 export const DEFAULT_BOARD_COLOR = '#5f8f4a';
 
 let nextUid = 1;
@@ -37,7 +37,7 @@ export class Layout {
     this._portCache = null; this._segCache.clear();
     // każdy listener osobno: awaria jednego (np. WebGL) nie może przerwać operacji ani pozostałych
     for (const fn of this.listeners) {
-      try { fn(kind, this); } catch (err) { console.error('listener', kind, err); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('routelayout:error', { detail: err })); }
+      try { fn(kind, this); } catch (err) { console.error('listener', kind, err); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('railsketch:error', { detail: err })); }
     }
   }
 

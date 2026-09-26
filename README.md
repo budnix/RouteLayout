@@ -1,10 +1,10 @@
-# RouteLayout — H0 track planner for PIKO A-Gleis with 3D preview
+# RailSketch — H0 track planner for PIKO A-Gleis with 3D preview
 
-**Live app: https://budnix.github.io/RouteLayout/**
+**Live app: https://budnix.github.io/RailSketch/**
 
 A web app (HTML5, ES modules, Canvas 2D + three.js) for designing H0 model railway layouts with a real-time 3D preview. Runs in Safari on iPad and iPhone (touch, pinch-zoom, "Add to Home Screen") as well as on desktop browsers. No build step, no backend, no account — your layout is saved in the browser.
 
-![RouteLayout on desktop: 2D editor next to the 3D preview](docs/screenshot-desktop.png)
+![RailSketch on desktop: 2D editor next to the 3D preview](docs/screenshot-desktop.png)
 
 ![Scenery objects in the 3D preview](docs/screenshot-scenery.png)
 

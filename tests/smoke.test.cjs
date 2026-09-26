@@ -417,11 +417,11 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.waitForTimeout(800);
   await page.screenshot({ path: path.join(OUT, 'desktop-split.png') });
 
-  const demo = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')));
+  const demo = await page.evaluate(() => JSON.parse(localStorage.getItem('railsketch.v1')));
   check(demo && demo.pieces.length === 18, 'demo: pętla z 18 elementów zapisana w localStorage');
   const hookKeys = ['layout', 'editor', 'view3d', 'insert', 'closeFromCursor', 'problems', 'train', 'setTrainMode', 'buildPrintView', 'removePrintView', 'shoppingList', 'setSystem', 'getSystem', 'encodeShare', 'decodeShare', 'loadFromHash', 'recent'];
-  const missing = await page.evaluate((keys) => keys.filter((k) => window.__routelayout[k] === undefined), hookKeys);
-  check(missing.length === 0, 'ui: window.__routelayout ma pełne API po podziale na plastry' + (missing.length ? ' (brak: ' + missing.join(',') + ')' : ''));
+  const missing = await page.evaluate((keys) => keys.filter((k) => window.__railsketch[k] === undefined), hookKeys);
+  check(missing.length === 0, 'ui: window.__railsketch ma pełne API po podziale na plastry' + (missing.length ? ' (brak: ' + missing.join(',') + ')' : ''));
 
   // auto-rysowanie: wyczyść, wstaw WL, potem R9 na odgałęzienie – końce muszą się zgadzać z geometrią Piko
   const auto = await page.evaluate(async () => {
@@ -430,9 +430,9 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     document.getElementById('btn-menu').click();
     document.getElementById('btn-clear').click();
     document.querySelector('#menu [data-close]').click();
-    window.__routelayout.insert('55220', 0);                 // WL, kursor -> port 1 (prosto)
-    window.__routelayout.insert('55200');                 // G239 za prostą
-    const s = JSON.parse(localStorage.getItem('routelayout.v1'));
+    window.__railsketch.insert('55220', 0);                 // WL, kursor -> port 1 (prosto)
+    window.__railsketch.insert('55200');                 // G239 za prostą
+    const s = JSON.parse(localStorage.getItem('railsketch.v1'));
     return s.pieces;
   });
   check(auto.length === 2, 'auto-rysowanie: 2 elementy po wstawieniu WL + G239');
@@ -449,7 +449,7 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   // kolor makiety: swatch + zapis + 3D
   await page.click('#btn-menu');
   await page.click('#swatches button[data-color="#c9a76b"]');
-  const boardColor = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).board.color);
+  const boardColor = await page.evaluate(() => JSON.parse(localStorage.getItem('railsketch.v1')).board.color);
   check(boardColor === '#c9a76b', 'kolor makiety: sklejka zapisana w układzie');
   await page.click('#menu button[data-close]');
   await page.click('#tab-3d'); await page.waitForTimeout(600);
@@ -465,7 +465,7 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   check(exported.version === 2 && exported.pieces.length === 2 && Array.isArray(exported.scenery), 'eksport JSON: poprawna struktura v2');
   await page.setInputFiles('#file-import', { name: 'demo.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ version: 1, name: 'T', board: { w: 1500, h: 900 }, pieces: [{ id: '55212', x: 100, y: 100, rot: 0 }, { id: '55224', x: 500, y: 500, rot: 15 }] })) });
   await page.waitForTimeout(300);
-  const imported = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')));
+  const imported = await page.evaluate(() => JSON.parse(localStorage.getItem('railsketch.v1')));
   check(imported.pieces.length === 2 && imported.board.w === 1500, 'import JSON: wczytuje elementy i blat');
 
   // 3D
@@ -478,15 +478,15 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   // undo
   await page.click('#tab-2d');
   await page.click('#btn-undo');
-  const afterUndo = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces.length);
+  const afterUndo = await page.evaluate(() => JSON.parse(localStorage.getItem('railsketch.v1')).pieces.length);
   check(afterUndo === 2, 'undo: przywraca stan sprzed importu (2 elementy)');
 
   // nowy układ: przycisk czyści wszystko, a po przeładowaniu demo NIE wraca
   await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); });
-  const afterNew = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces.length);
+  const afterNew = await page.evaluate(() => JSON.parse(localStorage.getItem('railsketch.v1')).pieces.length);
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(500);
-  const afterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces.length);
+  const afterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('railsketch.v1')).pieces.length);
   check(afterNew === 0 && afterReload === 0, 'nowy układ: pusty i pozostaje pusty po przeładowaniu');
   // nowy układ w 3D: blat musi być w kadrze (kamera celuje w środek blatu)
   await page.click('#tab-3d'); await page.waitForTimeout(400);
@@ -509,7 +509,7 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   const drawn = await page.evaluate(() => document.getElementById('draw-bar').classList.contains('hidden') === false);
   check(drawn, 'rysowanie: pasek narzędzi szkicu widoczny');
   await page.check('#chk-grid');
-  const gridOn = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.grid')).enabled);
+  const gridOn = await page.evaluate(() => JSON.parse(localStorage.getItem('railsketch.grid')).enabled);
   check(gridOn, 'rysowanie: siatka pomocnicza zapisana w ustawieniach');
   const box = await page.locator('#canvas2d').boundingBox();
   const sx = box.x + 60, sy = box.y + box.height / 2;
@@ -519,19 +519,19 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.mouse.up();
   // normalizacja na żywo: krzywa z ręki po puszczeniu myszy jest prostą + łukiem (łamana, nie 41 surowych punktów)
   const live = await page.evaluate(() => {
-    const st = window.__routelayout.editor.strokes[0];
+    const st = window.__railsketch.editor.strokes[0];
     // pierwsza część (prosta): wszystkie punkty do ~240 px w prawo leżą na jednej linii
     const [x0, y0] = st[0]; const [x1, y1] = st[1];
     const straightLen = Math.hypot(x1 - x0, y1 - y0);
     return { n: st.length, straightLen, dy: Math.abs(y1 - y0) };
   });
   check(live.n < 30 && live.straightLen > 200 && live.dy < 0.01, `normalizacja na żywo: kreska → prosta ${live.straightLen.toFixed(0)} mm + łuk (${live.n} pkt)`);
-  const nStrokes = await page.evaluate(() => window.__routelayout.editor.strokes.length);
+  const nStrokes = await page.evaluate(() => window.__railsketch.editor.strokes.length);
   check(nStrokes === 1, 'rysowanie: kreska zarejestrowana');
   await page.click('#btn-finish');
-  const fitted = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces);
+  const fitted = await page.evaluate(() => JSON.parse(localStorage.getItem('railsketch.v1')).pieces);
   check(fitted.length >= 3 && fitted.some((p) => p.id.startsWith('5521')), 'rysowanie: szkic zamieniony na proste i łuki');
-  const m1 = await page.evaluate(() => window.__routelayout.lastFit.method);
+  const m1 = await page.evaluate(() => window.__railsketch.lastFit.method);
   check(m1 === 'normalized', 'rysowanie: z „Normalizuj linie” użyta normalizacja');
   // to samo bez poprawiania: tor dosłownie za kreską (metoda zachłanna), ustawienie zapamiętane
   await page.click('#btn-new'); await page.click('#btn-fit2d'); await page.click('#btn-draw');
@@ -540,7 +540,7 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   for (let i = 1; i <= 40; i++) await page.mouse.move(sx + i * 6, sy + Math.sin(i / 3) * 4);
   await page.mouse.up();
   await page.click('#btn-finish');
-  const m2 = await page.evaluate(() => ({ m: window.__routelayout.lastFit.method, pref: localStorage.getItem('routelayout.fix'), n: window.__routelayout.layout.pieces.length }));
+  const m2 = await page.evaluate(() => ({ m: window.__railsketch.lastFit.method, pref: localStorage.getItem('railsketch.fix'), n: window.__railsketch.layout.pieces.length }));
   check(m2.m === 'greedy' && m2.pref === '0' && m2.n > 0, `rysowanie: bez poprawiania metoda zachłanna (${m2.n} el.), ustawienie zapamiętane`);
   await page.click('#btn-draw'); await page.check('#chk-fix'); await page.click('#btn-draw');
   await page.screenshot({ path: path.join(OUT, 'desktop-fitted.png') });
@@ -548,18 +548,18 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   // sceneria: wstaw drzewo i drogę, zmień rozmiar drogi, sprawdź zapis i 3D
   const scen = await page.evaluate(() => {
     const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); };
-    window.__routelayout.insert('conifer');
-    window.__routelayout.insert('road');
+    window.__railsketch.insert('conifer');
+    window.__railsketch.insert('road');
     set('in-sel-w', 900); set('in-sel-h', 80);
     document.querySelector('#pal-tabs button[data-tab="scenery"]').click();
     const entryHidden = document.getElementById('entry-row').classList.contains('hidden');
-    const s = JSON.parse(localStorage.getItem('routelayout.v1'));
+    const s = JSON.parse(localStorage.getItem('railsketch.v1'));
     return { entryHidden, scenery: s.scenery, version: s.version, name: document.getElementById('sel-name').textContent };
   });
   check(scen.entryHidden && scen.scenery.length === 2 && scen.scenery[0].type === 'conifer', 'sceneria: drzewo i droga wstawione, zapisane w JSON v' + scen.version);
   check(scen.scenery[1].w === 900 && scen.scenery[1].h === 80, 'sceneria: rozmiar drogi z panelu zaznaczenia (900×80)');
   await page.click('#btn-rot-r');
-  const rot = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).scenery[1].rot);
+  const rot = await page.evaluate(() => JSON.parse(localStorage.getItem('railsketch.v1')).scenery[1].rot);
   check(rot === 15, 'sceneria: obrót zaznaczonego obiektu o 15°');
   await page.click('#tab-3d'); await page.waitForTimeout(800);
   const meshes = await page.evaluate(() => document.querySelector('#view3d canvas') ? 1 : 0);
@@ -571,36 +571,36 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.evaluate(async () => {
     const { SCENERY } = await import('./js/scenery.js');
     const scenery = Object.entries(SCENERY).map(([type, def], i) => ({ type, x: 250 + (i % 5) * 380, y: 220 + Math.floor(i / 5) * 300, rot: 0, w: def.w, h: def.h }));
-    localStorage.setItem('routelayout.v1', JSON.stringify({ version: 2, name: 'Scenery', board: { w: 2000, h: 1000 }, pieces: [], scenery }));
+    localStorage.setItem('railsketch.v1', JSON.stringify({ version: 2, name: 'Scenery', board: { w: 2000, h: 1000 }, pieces: [], scenery }));
   });
   await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(500);
-  const nTypes = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).scenery.length);
+  const nTypes = await page.evaluate(() => JSON.parse(localStorage.getItem('railsketch.v1')).scenery.length);
   check(nTypes === 14, 'sceneria: wszystkie 14 typów wstawione i wczytane po przeładowaniu');
   await page.click('#tab-3d'); await page.click('#btn-fit3d'); await page.waitForTimeout(900);
   await page.screenshot({ path: path.join(OUT, 'desktop-scenery-all.png') });
   await page.click('#tab-2d');
-  await page.evaluate(() => { const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); }; window.__routelayout.insert('road'); });
+  await page.evaluate(() => { const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); }; window.__railsketch.insert('road'); });
   await page.click('#btn-del');
-  const afterDel = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).scenery.length);
+  const afterDel = await page.evaluate(() => JSON.parse(localStorage.getItem('railsketch.v1')).scenery.length);
   check(meshes === 1 && afterDel === 14, 'sceneria: usunięcie zaznaczonego obiektu');
   await page.evaluate(() => document.querySelector('#pal-tabs button[data-tab="piko"]').click());
 
   // obrotnica w UI: wstaw, stuknij obrzeże, doklej prostą, ustaw nachylenie, 3D
   await page.click('#btn-new');
-  await page.evaluate(() => { const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); }; window.__routelayout.insert('TT'); });
+  await page.evaluate(() => { const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); }; window.__railsketch.insert('TT'); });
   await page.click('#btn-fit2d');
-  const ttInfo = await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('routelayout.v1')); return s.pieces[0]; });
+  const ttInfo = await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('railsketch.v1')); return s.pieces[0]; });
   // stuknięcie w obrzeże pod kątem 120° tworzy tam port i ustawia kursor
   const rimPx = await page.evaluate((tt) => {
-    const { editor } = window.__routelayout; const a = 120 * Math.PI / 180;
+    const { editor } = window.__railsketch; const a = 120 * Math.PI / 180;
     const p = editor.toScreen(tt.x + tt.r * Math.cos(a), tt.y + tt.r * Math.sin(a));
     const r = editor.canvas.getBoundingClientRect(); return { x: r.left + p.x, y: r.top + p.y };
   }, ttInfo);
   await page.mouse.click(rimPx.x, rimPx.y);
-  const rimState = await page.evaluate(() => { const { layout, editor } = window.__routelayout; const c = editor.cursorPort(); return { angles: layout.pieces[0].angles, cursorA: c && Math.round(c.a) }; });
+  const rimState = await page.evaluate(() => { const { layout, editor } = window.__railsketch; const c = editor.cursorPort(); return { angles: layout.pieces[0].angles, cursorA: c && Math.round(c.a) }; });
   check(rimState.angles.includes(120) && rimState.cursorA === 120, 'obrotnica UI: stuknięcie w obrzeże → port pod 120° i kursor');
-  await page.evaluate(() => { const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); }; window.__routelayout.insert('55200'); set('in-sel-g', 4); });
-  const after = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')).pieces);
+  await page.evaluate(() => { const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change')); }; window.__railsketch.insert('55200'); set('in-sel-g', 4); });
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem('railsketch.v1')).pieces);
   check(after.length === 2 && after[1].id === '55200' && after[1].rot === 120 && Math.abs(after[1].dz - 9.5628) < 0.01, 'obrotnica UI: prosta doklejona do portu 120°, nachylenie 4% z panelu');
   await page.click('#tab-3d'); await page.click('#btn-fit3d'); await page.waitForTimeout(800);
   await page.screenshot({ path: path.join(OUT, 'desktop-turntable-3d.png') });
@@ -611,7 +611,7 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   const wBefore = await page.evaluate(() => document.getElementById('canvas2d').clientWidth);
   await page.click('#btn-side'); await page.waitForTimeout(200);
   const wAfter = await page.evaluate(() => document.getElementById('canvas2d').clientWidth);
-  const sideSaved = await page.evaluate(() => localStorage.getItem('routelayout.side'));
+  const sideSaved = await page.evaluate(() => localStorage.getItem('railsketch.side'));
   check(wAfter > wBefore + 300 && sideSaved === '1', `panel boczny: schowany, canvas ${wBefore} → ${wAfter} px`);
   await page.click('#btn-side'); await page.waitForTimeout(200);
 
@@ -621,27 +621,27 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   check(rows.n >= 28 && rows.sections.length === 5 && rows.icons >= 28, `paleta: ${rows.n} wierszy w ${rows.sections.length} sekcjach, miniatury SVG`);
   await page.click('.pal-item[data-id="55200"]');
   await page.click('.pal-item[data-id="55212"] button[data-entry="1"]');
-  const palState = await page.evaluate(() => window.__routelayout.layout.pieces.map((p) => [p.id, Math.round(p.rot)]));
+  const palState = await page.evaluate(() => window.__railsketch.layout.pieces.map((p) => [p.id, Math.round(p.rot)]));
   // R2 portem 1 za prostą (kierunek 0°): rot = 180 − 30 = 150 → łuk skręca w prawo (wyjście pod −30°)
   check(palState.length === 2 && palState[1][0] === '55212' && palState[1][1] === 150, 'paleta: prosta + R2 „w prawo” (wejście portem 1) (' + JSON.stringify(palState) + ')');
   await page.evaluate(() => document.querySelector('#pal-tabs button[data-tab="scenery"]').click());
   await page.click('.pal-item[data-type="house"]');
-  const scen1 = await page.evaluate(() => window.__routelayout.layout.scenery.length);
+  const scen1 = await page.evaluate(() => window.__railsketch.layout.scenery.length);
   check(scen1 === 1, 'paleta: zakładka Sceneria wstawia obiekt z listy');
   await page.evaluate(() => document.querySelector('#pal-tabs button[data-tab="piko"]').click());
 
   // domykanie w UI: owal bez jednej prostej, przycisk „Domknij” przy aktywnym końcu
-  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); const { insert, editor, layout } = window.__routelayout; const first = insert('55200'); editor.cursor = { uid: first.uid, idx: 1 };
+  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); const { insert, editor, layout } = window.__railsketch; const first = insert('55200'); editor.cursor = { uid: first.uid, idx: 1 };
     for (const id of ['55200', '55212', '55212', '55212', '55212', '55212', '55212', '55200', '55200', '55200', '55212', '55212', '55212', '55212', '55212', '55212']) insert(id); void layout; });
   const closeVisible = await page.evaluate(() => !document.getElementById('btn-close').classList.contains('hidden'));
   await page.click('#btn-close'); await page.waitForTimeout(200);
-  const closed = await page.evaluate(() => ({ open: window.__routelayout.layout.openPorts().length, n: window.__routelayout.layout.pieces.length, toast: document.getElementById('toast').textContent }));
+  const closed = await page.evaluate(() => ({ open: window.__railsketch.layout.openPorts().length, n: window.__railsketch.layout.pieces.length, toast: document.getElementById('toast').textContent }));
   check(closeVisible && closed.open === 0 && closed.n === 18, `domykanie UI: przycisk widoczny, owal domknięty (${closed.toast})`);
 
   // kontrola w UI: krzyżujące się tory → badge na menu, lista w menu, znacznik na planie
-  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); const { layout } = window.__routelayout; layout.add('55200', { x: 800, y: 500, rot: 0 }); layout.add('55200', { x: 900, y: 400, rot: 90 }); });
+  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); const { layout } = window.__railsketch; layout.add('55200', { x: 800, y: 500, rot: 0 }); layout.add('55200', { x: 900, y: 400, rot: 90 }); });
   await page.waitForTimeout(400);
-  const ui = await page.evaluate(() => ({ badge: document.getElementById('menu-badge').textContent, hidden: document.getElementById('menu-badge').classList.contains('hidden'), n: window.__routelayout.problems().length, markers: window.__routelayout.editor.problems.length }));
+  const ui = await page.evaluate(() => ({ badge: document.getElementById('menu-badge').textContent, hidden: document.getElementById('menu-badge').classList.contains('hidden'), n: window.__railsketch.problems().length, markers: window.__railsketch.editor.problems.length }));
   await page.click('#btn-menu');
   const listed = await page.evaluate(() => document.querySelectorAll('#problems .prob').length);
   await page.screenshot({ path: path.join(OUT, 'desktop-problems.png') });
@@ -649,24 +649,24 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   check(ui.badge === '1' && !ui.hidden && ui.n === 1 && ui.markers === 1 && listed === 1, `kontrola UI: badge ${ui.badge}, ${listed} na liście, ${ui.markers} znacznik`);
 
   // jazda w UI: tryb, start, pozycja się zmienia, stuknięcie rozjazdu przełącza
-  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); const { insert, editor, layout } = window.__routelayout; const a = insert('55200'); editor.cursor = { uid: a.uid, idx: 1 }; insert('55220'); insert('55200'); editor.cursor = { uid: layout.pieces[1].uid, idx: 2 }; insert('55219'); editor.cursor = { uid: a.uid, idx: 0 }; });
+  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); const { insert, editor, layout } = window.__railsketch; const a = insert('55200'); editor.cursor = { uid: a.uid, idx: 1 }; insert('55220'); insert('55200'); editor.cursor = { uid: layout.pieces[1].uid, idx: 2 }; insert('55219'); editor.cursor = { uid: a.uid, idx: 0 }; });
   await page.click('#btn-train');
-  const t0 = await page.evaluate(() => ({ mode: window.__routelayout.editor.mode, bar: !document.getElementById('train-bar').classList.contains('hidden'), x: window.__routelayout.train.pose().x }));
+  const t0 = await page.evaluate(() => ({ mode: window.__railsketch.editor.mode, bar: !document.getElementById('train-bar').classList.contains('hidden'), x: window.__railsketch.train.pose().x }));
   await page.click('#btn-play'); await page.waitForTimeout(600);
-  const t1 = await page.evaluate(() => ({ x: window.__routelayout.train.pose().x, running: window.__routelayout.train.running, meshes: window.__routelayout.view3d.trainGroup.children.length }));
+  const t1 = await page.evaluate(() => ({ x: window.__railsketch.train.pose().x, running: window.__railsketch.train.running, meshes: window.__railsketch.view3d.trainGroup.children.length }));
   await page.click('#btn-play');
   // stuknij rozjazd (element 2) na planie
-  const wlPx = await page.evaluate(() => { const { editor, layout } = window.__routelayout; const wl = layout.pieces[1]; const p = editor.toScreen(wl.x + 120, wl.y); const r = editor.canvas.getBoundingClientRect(); return { x: r.left + p.x, y: r.top + p.y }; });
+  const wlPx = await page.evaluate(() => { const { editor, layout } = window.__railsketch; const wl = layout.pieces[1]; const p = editor.toScreen(wl.x + 120, wl.y); const r = editor.canvas.getBoundingClientRect(); return { x: r.left + p.x, y: r.top + p.y }; });
   await page.mouse.click(wlPx.x, wlPx.y);
-  const sw = await page.evaluate(() => window.__routelayout.layout.pieces[1].sw);
+  const sw = await page.evaluate(() => window.__railsketch.layout.pieces[1].sw);
   await page.screenshot({ path: path.join(OUT, 'desktop-train.png') });
   await page.click('#btn-train');
   check(t0.mode === 'train' && t0.bar && t1.x > t0.x + 30 && t1.running && t1.meshes === 3 && sw === 1, `jazda UI: start x ${t0.x.toFixed(0)} → ${t1.x.toFixed(0)}, ${t1.meshes} bryły w 3D, rozjazd przełożony (sw=${sw})`);
 
   // druk: kafelki 1:1 (2000×1000 → 11×4 = 44 stron A4) i cały plan na jednej stronie
-  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); const { insert, editor } = window.__routelayout; const a = insert('55200'); editor.cursor = { uid: a.uid, idx: 1 }; for (const id of ['55200', '55212', '55212']) insert(id); });
+  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); const { insert, editor } = window.__railsketch; const a = insert('55200'); editor.cursor = { uid: a.uid, idx: 1 }; for (const id of ['55200', '55212', '55212']) insert(id); });
   const pr = await page.evaluate(() => {
-    const { buildPrintView, removePrintView, layout } = window.__routelayout;
+    const { buildPrintView, removePrintView, layout } = window.__railsketch;
     const tiles = buildPrintView(layout, 'tiles', { tile: 'kafelek' });
     const first = tiles.querySelector('canvas');
     const res = { pages: tiles.querySelectorAll('.page').length, cssW: first.style.width, cssH: first.style.height, pxW: first.width, title: tiles.querySelector('.page-title').textContent };
@@ -692,24 +692,24 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.click('#btn-menu');
   await page.fill('#bom input.have[data-id="55200"]', '1');
   await page.dispatchEvent('#bom input.have[data-id="55200"]', 'change');
-  const shop = await page.evaluate(() => ({ buy: [...document.querySelectorAll('#bom .buy')].map((e) => e.textContent), toBuy: document.getElementById('to-buy').textContent, list: window.__routelayout.shoppingList(), saved: JSON.parse(localStorage.getItem('routelayout.have'))['55200'] }));
+  const shop = await page.evaluate(() => ({ buy: [...document.querySelectorAll('#bom .buy')].map((e) => e.textContent), toBuy: document.getElementById('to-buy').textContent, list: window.__railsketch.shoppingList(), saved: JSON.parse(localStorage.getItem('railsketch.have'))['55200'] }));
   await page.click('#menu button[data-close]');
   check(shop.buy[0] === '1 ×' && shop.buy[1] === '2 ×' && /2/.test(shop.toBuy) === false && /3/.test(shop.toBuy) && shop.list.startsWith('1 × 55200') && shop.saved === 1, `lista zakupów: ${JSON.stringify(shop.buy)} → "${shop.toBuy}"`);
-  await page.evaluate(() => { localStorage.removeItem('routelayout.have'); });
+  await page.evaluate(() => { localStorage.removeItem('railsketch.have'); });
 
   // system torów w UI: wybór podsypki → lista 554xx, wstawianie, dopasowanie szkicu i domykanie mapują na 554xx
-  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); document.querySelector('#pal-tabs button[data-tab="piko"]').click(); window.__routelayout.setSystem('piko-a-bed'); });
+  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); document.querySelector('#pal-tabs button[data-tab="piko"]').click(); window.__railsketch.setSystem('piko-a-bed'); });
   const sysRows = await page.evaluate(() => [...new Set([...document.querySelectorAll('.pal-item[data-id]')].map((e) => e.dataset.id))]);
   await page.click('.pal-item[data-id="55400"]');
   await page.click('.pal-item[data-id="55412"] button[data-entry="0"]');
-  const sysPieces = await page.evaluate(() => window.__routelayout.layout.pieces.map((p) => p.id));
+  const sysPieces = await page.evaluate(() => window.__railsketch.layout.pieces.map((p) => p.id));
   // szkic: prosta → elementy 554xx
   await page.click('#btn-draw');
   const bx = await page.locator('#canvas2d').boundingBox();
   await page.mouse.move(bx.x + 60, bx.y + 80); await page.mouse.down(); for (let i = 1; i <= 30; i++) await page.mouse.move(bx.x + 60 + i * 6, bx.y + 80); await page.mouse.up();
   await page.click('#btn-finish'); await page.waitForTimeout(200);
-  const sysFit = await page.evaluate(() => window.__routelayout.layout.pieces.slice(2).map((p) => p.id));
-  await page.evaluate(() => window.__routelayout.setSystem('piko-a'));
+  const sysFit = await page.evaluate(() => window.__railsketch.layout.pieces.slice(2).map((p) => p.id));
+  await page.evaluate(() => window.__railsketch.setSystem('piko-a'));
   const backRows = await page.evaluate(() => new Set([...document.querySelectorAll('.pal-item[data-id^="552"]')].map((e) => e.dataset.id)).size);
   check(sysRows.length === 28 && sysRows.every((id) => id.startsWith('554')) && sysPieces.join() === '55400,55412', `system torów: lista ${sysRows.length}×554xx, wstawiono ${sysPieces.join('+')}`);
   check(sysFit.length > 0 && sysFit.every((id) => id.startsWith('554')) && backRows === 28, `system torów: szkic → ${sysFit.join(',')}; powrót do 552xx (${backRows} wierszy)`);
@@ -717,41 +717,41 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   // ostatnio używane, zaznaczanie prostokątem, wymiary, link
   await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); document.querySelector('#pal-tabs button[data-tab="piko"]').click(); });
   await page.click('.pal-item[data-id="55201"]');
-  const rec = await page.evaluate(() => ({ first: document.querySelector('.pal-section').textContent, firstRow: document.querySelector('.pal-item').dataset.id, saved: JSON.parse(localStorage.getItem('routelayout.recent')) }));
+  const rec = await page.evaluate(() => ({ first: document.querySelector('.pal-section').textContent, firstRow: document.querySelector('.pal-item').dataset.id, saved: JSON.parse(localStorage.getItem('railsketch.recent')) }));
   check(rec.first === 'Recently used' && rec.firstRow === '55201' && rec.saved[0] === '55201', `ostatnio używane: sekcja na górze (${rec.firstRow})`);
   // dwa elementy w rzędzie + trzeci daleko; zaznacz prostokątem pierwsze dwa, przesuń grupę przeciągając, obróć, usuń
-  await page.evaluate(() => { const { layout, editor } = window.__routelayout; layout.clear(); const a = layout.add('55200', { x: 300, y: 300, rot: 0 }); layout.attach('55200', 0, layout.portOf(a, 1)); layout.add('55200', { x: 300, y: 800, rot: 0 }); editor.view = { scale: 0.5, ox: 60, oy: 60 }; editor.draw(); });
+  await page.evaluate(() => { const { layout, editor } = window.__railsketch; layout.clear(); const a = layout.add('55200', { x: 300, y: 300, rot: 0 }); layout.attach('55200', 0, layout.portOf(a, 1)); layout.add('55200', { x: 300, y: 800, rot: 0 }); editor.view = { scale: 0.5, ox: 60, oy: 60 }; editor.draw(); });
   await page.click('#btn-marquee');
-  const q = await page.evaluate(() => { const { editor } = window.__routelayout; const r = editor.canvas.getBoundingClientRect(); const p0 = editor.toScreen(280, 260), p1 = editor.toScreen(900, 340); return { x0: r.left + p0.x, y0: r.top + p0.y, x1: r.left + p1.x, y1: r.top + p1.y, mode: editor.mode }; });
+  const q = await page.evaluate(() => { const { editor } = window.__railsketch; const r = editor.canvas.getBoundingClientRect(); const p0 = editor.toScreen(280, 260), p1 = editor.toScreen(900, 340); return { x0: r.left + p0.x, y0: r.top + p0.y, x1: r.left + p1.x, y1: r.top + p1.y, mode: editor.mode }; });
   await page.mouse.move(q.x0, q.y0); await page.mouse.down(); await page.mouse.move(q.x1, q.y1, { steps: 5 }); await page.mouse.up();
-  const sel = await page.evaluate(() => ({ n: window.__routelayout.editor.selection.size, mode: window.__routelayout.editor.mode, label: document.getElementById('sel-name').textContent }));
+  const sel = await page.evaluate(() => ({ n: window.__railsketch.editor.selection.size, mode: window.__railsketch.editor.mode, label: document.getElementById('sel-name').textContent }));
   // przeciągnij grupę za pierwszy element o +200 mm w x
-  const g = await page.evaluate(() => { const { editor, layout } = window.__routelayout; const r = editor.canvas.getBoundingClientRect(); const p = editor.toScreen(layout.pieces[0].x + 100, layout.pieces[0].y); const d = editor.toScreen(layout.pieces[0].x + 300, layout.pieces[0].y); return { x: r.left + p.x, y: r.top + p.y, dx: r.left + d.x, dy: r.top + d.y }; });
+  const g = await page.evaluate(() => { const { editor, layout } = window.__railsketch; const r = editor.canvas.getBoundingClientRect(); const p = editor.toScreen(layout.pieces[0].x + 100, layout.pieces[0].y); const d = editor.toScreen(layout.pieces[0].x + 300, layout.pieces[0].y); return { x: r.left + p.x, y: r.top + p.y, dx: r.left + d.x, dy: r.top + d.y }; });
   await page.mouse.move(g.x, g.y); await page.mouse.down(); await page.mouse.move(g.dx, g.dy, { steps: 8 }); await page.mouse.up();
-  const moved = await page.evaluate(() => window.__routelayout.layout.pieces.map((p) => Math.round(p.x)));
+  const moved = await page.evaluate(() => window.__railsketch.layout.pieces.map((p) => Math.round(p.x)));
   await page.click('#btn-rot-r');
-  const grot = await page.evaluate(() => window.__routelayout.layout.pieces.map((p) => Math.round(p.rot)));
+  const grot = await page.evaluate(() => window.__railsketch.layout.pieces.map((p) => Math.round(p.rot)));
   await page.click('#btn-del');
-  const left = await page.evaluate(() => window.__routelayout.layout.pieces.length);
+  const left = await page.evaluate(() => window.__railsketch.layout.pieces.length);
   check(q.mode === 'marquee' && sel.n === 2 && sel.mode === 'edit' && /2/.test(sel.label), `zaznaczanie: prostokąt → ${sel.n} elementy, etykieta „${sel.label}”`);
   check(moved[0] === 500 && moved[1] === 739 && moved[2] === 300, `zaznaczanie: przeciągnięcie grupy (${moved.join(',')})`);
   check(grot[0] === 15 && grot[1] === 15 && grot[2] === 0 && left === 1, `zaznaczanie: obrót grupy (${grot.join(',')}) i usunięcie (zostało ${left})`);
   // wymiary
-  await page.evaluate(() => { const { layout } = window.__routelayout; layout.clear(); layout.add('55200', { x: 300, y: 300, rot: 0 }); layout.add('55200', { x: 300, y: 361.88, rot: 0 }); layout.add('55212', { x: 800, y: 300, rot: 0 }); });
+  await page.evaluate(() => { const { layout } = window.__railsketch; layout.clear(); layout.add('55200', { x: 300, y: 300, rot: 0 }); layout.add('55200', { x: 300, y: 361.88, rot: 0 }); layout.add('55212', { x: 800, y: 300, rot: 0 }); });
   await page.click('#btn-dims'); await page.waitForTimeout(100);
-  const dimsOn = await page.evaluate(() => ({ on: window.__routelayout.editor.dims, pref: localStorage.getItem('routelayout.dims'), active: document.getElementById('btn-dims').classList.contains('active') }));
+  const dimsOn = await page.evaluate(() => ({ on: window.__railsketch.editor.dims, pref: localStorage.getItem('railsketch.dims'), active: document.getElementById('btn-dims').classList.contains('active') }));
   await page.screenshot({ path: path.join(OUT, 'desktop-dims.png') });
   await page.click('#btn-dims');
   check(dimsOn.on && dimsOn.pref === '1' && dimsOn.active, 'wymiary: tryb włączony i zapamiętany');
   // link: koduj → dekoduj; nawigacja z #L= wczytuje układ
-  const share = await page.evaluate(async () => { const { encodeShare, decodeShare, layout } = window.__routelayout; const frag = await encodeShare(layout.toJSON()); const back = await decodeShare('#' + frag); return { frag: frag.slice(0, 2), len: frag.length, pieces: back.pieces.length, url: location.origin + location.pathname + '#' + frag }; });
+  const share = await page.evaluate(async () => { const { encodeShare, decodeShare, layout } = window.__railsketch; const frag = await encodeShare(layout.toJSON()); const back = await decodeShare('#' + frag); return { frag: frag.slice(0, 2), len: frag.length, pieces: back.pieces.length, url: location.origin + location.pathname + '#' + frag }; });
   await page.goto(share.url, { waitUntil: 'networkidle' }); await page.waitForTimeout(500);
-  const fromLink = await page.evaluate(() => ({ n: window.__routelayout.layout.pieces.length, hash: location.hash, ids: window.__routelayout.layout.pieces.map((p) => p.id).join() }));
+  const fromLink = await page.evaluate(() => ({ n: window.__railsketch.layout.pieces.length, hash: location.hash, ids: window.__railsketch.layout.pieces.map((p) => p.id).join() }));
   check(share.frag === 'L=' && share.len < 400 && share.pieces === 3 && fromLink.n === 3 && fromLink.hash === '' && fromLink.ids === '55200,55200,55212', `link: ${share.len} znaków, wczytany z adresu (${fromLink.ids}), hash wyczyszczony`);
 
   // i18n: przełączenie na DE zmienia teksty UI i nazwy w katalogu
   const de = await page.evaluate(() => {
-    window.__routelayout.recent.length = 0; localStorage.removeItem('routelayout.recent');
+    window.__railsketch.recent.length = 0; localStorage.removeItem('railsketch.recent');
     const sel = document.getElementById('sel-lang'); sel.value = 'de'; sel.dispatchEvent(new Event('change'));
     document.querySelector('#pal-tabs button[data-tab="piko"]').click();
     return { tab: document.querySelector('#pal-tabs button[data-tab="piko"]').textContent, group: document.querySelector('.pal-section').textContent,
@@ -763,22 +763,22 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
 
   // ---- tabor w menu: zmiana obrysu uruchamia kontrolę ----
   {
-    await page.evaluate(() => { const { layout, editor } = window.__routelayout; editor.cursor = null; editor.selected = null; layout.clear(); layout.add('55211', { x: 800, y: 600, rot: 0 }); localStorage.removeItem('routelayout.stock'); });
+    await page.evaluate(() => { const { layout, editor } = window.__railsketch; editor.cursor = null; editor.selected = null; layout.clear(); layout.add('55211', { x: 800, y: 600, rot: 0 }); localStorage.removeItem('railsketch.stock'); });
     await page.click('#btn-menu'); await page.waitForTimeout(200);
     const opts = await page.locator('#sel-stock option').count();
     await page.selectOption('#sel-stock', 'long'); await page.waitForTimeout(300);
-    const types = await page.evaluate(() => window.__routelayout.problems().map((p) => p.type));
+    const types = await page.evaluate(() => window.__railsketch.problems().map((p) => p.type));
     check(opts === 3 && types.includes('radius'), `stock UI: wybór długiego taboru → problem „promień” dla R1 (${types.join(',')})`);
     await page.selectOption('#sel-stock', 'standard'); await page.waitForTimeout(300);
-    const types2 = await page.evaluate(() => window.__routelayout.problems().map((p) => p.type));
-    check(!types2.includes('radius') && (await page.evaluate(() => localStorage.getItem('routelayout.stock'))) === 'standard', 'stock UI: powrót do standardowego taboru czyści problem i zapisuje preferencję');
+    const types2 = await page.evaluate(() => window.__railsketch.problems().map((p) => p.type));
+    check(!types2.includes('radius') && (await page.evaluate(() => localStorage.getItem('railsketch.stock'))) === 'standard', 'stock UI: powrót do standardowego taboru czyści problem i zapisuje preferencję');
     await page.click('#menu [data-close]'); await page.waitForTimeout(100);
-    await page.evaluate(() => { window.__routelayout.layout.clear(); });
+    await page.evaluate(() => { window.__railsketch.layout.clear(); });
   }
 
   // ---- poziomy w 2D: pasek, wybór poziomu, wyszarzenie i blokada stuknięcia ----
   {
-    await page.evaluate(() => { const { layout, editor } = window.__routelayout; window.confirm = () => true; editor.cursor = null; editor.selected = null; layout.clear();
+    await page.evaluate(() => { const { layout, editor } = window.__railsketch; window.confirm = () => true; editor.cursor = null; editor.selected = null; layout.clear();
       const a = layout.add('55200', { x: 300, y: 300, rot: 0 }); const b = layout.add('55200', { x: 300, y: 600, rot: 0 }); layout.setHeight(b, 120); editor.view = { ox: 0, oy: 0, scale: 1 }; editor.draw(); });
     await page.waitForTimeout(150);
     const cnt = await page.locator('#levels-count').textContent();
@@ -787,22 +787,22 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     const opts = await page.locator('#sel-level option').allTextContents();
     check(!(await page.locator('#levels-bar').isHidden()) && opts.length === 3, `levels UI: pasek z opcjami ${JSON.stringify(opts)}`);
     await page.selectOption('#sel-level', '120'); await page.waitForTimeout(150);
-    const lvl = await page.evaluate(() => window.__routelayout.editor.level);
+    const lvl = await page.evaluate(() => window.__railsketch.editor.level);
     check(lvl && lvl.min === 120 && lvl.max === 120, `levels UI: wybór poziomu ustawia filtr edytora ${JSON.stringify(lvl)}`);
     // stuknięcie w tor na poziomie 0 nie zaznacza go; stuknięcie w tor na 120 – tak
     const box = await page.locator('#canvas2d').boundingBox();
     await page.mouse.click(box.x + 420, box.y + 300); await page.waitForTimeout(120);
-    const sel0 = await page.evaluate(() => window.__routelayout.editor.selected && window.__routelayout.editor.selected.z);
+    const sel0 = await page.evaluate(() => window.__railsketch.editor.selected && window.__railsketch.editor.selected.z);
     await page.mouse.click(box.x + 420, box.y + 600); await page.waitForTimeout(120);
-    const sel120 = await page.evaluate(() => window.__routelayout.editor.selected && window.__routelayout.editor.selected.z);
+    const sel120 = await page.evaluate(() => window.__railsketch.editor.selected && window.__railsketch.editor.selected.z);
     check((sel0 === null || sel0 === undefined) && sel120 === 120, `levels UI: element spoza poziomu jest nieaktywny (sel0=${sel0}, sel120=${sel120})`);
     // wyszarzony ślad: piksel na osi toru 0 mm jest jaśniejszy/mniej nasycony niż na torze 120 mm
     const px = await page.evaluate(() => { const c = document.getElementById('canvas2d'); const g = c.getContext('2d'); const r = devicePixelRatio || 1; const at = (x, y) => [...g.getImageData(Math.round(x * r), Math.round(y * r), 1, 1).data]; return { off: at(420, 300), on: at(420, 600) }; });
     check(JSON.stringify(px.off) !== JSON.stringify(px.on), `levels UI: tor spoza poziomu rysowany inaczej (${px.off} vs ${px.on})`);
     await page.click('#btn-levels'); await page.waitForTimeout(100);
-    const cleared = await page.evaluate(() => window.__routelayout.editor.level === null);
+    const cleared = await page.evaluate(() => window.__railsketch.editor.level === null);
     check(cleared && await page.locator('#levels-bar').isHidden(), 'levels UI: zamknięcie paska zdejmuje filtr');
-    await page.evaluate(() => { const { layout } = window.__routelayout; layout.clear(); });
+    await page.evaluate(() => { const { layout } = window.__railsketch; layout.clear(); });
   }
 
   // ---- import listy części przez menu: plik → kolumna „mam” ----
@@ -811,12 +811,12 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     await page.setInputFiles('#file-import-parts', { name: 'parts.csv', mimeType: 'text/csv', buffer: Buffer.from('Quantity;Article;Description\n3;PIKO 55200;G239\n2;55212;R2\n') });
     await page.waitForTimeout(300);
     const have = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#bom input.have')].map((i) => [i.dataset.id, +i.value])));
-    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.have') || '{}'));
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('railsketch.have') || '{}'));
     check(stored['55200'] === 3 && stored['55212'] === 2, `partlist UI: import ustawia „mam” i zapisuje w prefs (${JSON.stringify(stored)})`);
     check(have['55200'] === 3 || have['55200'] === undefined, 'partlist UI: wartości w tabeli BOM odpowiadają prefs');
     const toastText = await page.locator('#toast').textContent();
     check(/2/.test(toastText) && /5/.test(toastText), `partlist UI: toast podsumowuje import („${toastText}”)`);
-    await page.evaluate(() => { localStorage.removeItem('routelayout.have'); });
+    await page.evaluate(() => { localStorage.removeItem('railsketch.have'); });
     await page.click('#menu [data-close]'); await page.waitForTimeout(100);
   }
 
@@ -837,20 +837,32 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
       }
       return { keys: await caches.keys(), have: 0 };
     });
-    check(swState.keys.some((k) => k.startsWith('routelayout-')) && swState.hasMain && swState.hasIndex, `offline: cache "${swState.keys[0]}" zawiera ${swState.have} plików`);
-    const exposed = await off.evaluate(() => window.__routelayout.offline && window.__routelayout.offline.supported);
+    check(swState.keys.some((k) => k.startsWith('railsketch-')) && swState.hasMain && swState.hasIndex, `offline: cache "${swState.keys[0]}" zawiera ${swState.have} plików`);
+    const exposed = await off.evaluate(() => window.__railsketch.offline && window.__railsketch.offline.supported);
     check(exposed === true, 'offline: plaster ui/offline.js wystawia stan');
     await ctx.setOffline(true);
     let booted = false, offlinePieces = 0;
     try {
       await off.goto(url, { waitUntil: 'load' });
-      await off.waitForFunction(() => window.__routelayout && window.__routelayout.layout, null, { timeout: 8000 });
-      booted = true; offlinePieces = await off.evaluate(() => window.__routelayout.layout.pieces.length);
+      await off.waitForFunction(() => window.__railsketch && window.__railsketch.layout, null, { timeout: 8000 });
+      booted = true; offlinePieces = await off.evaluate(() => window.__railsketch.layout.pieces.length);
     } catch (e) { console.log('   offline boot:', e.message.split('\n')[0]); }
     check(booted && offlinePieces === 18, `offline: strona wczytana bez sieci, demo z ${offlinePieces} elementów`);
     const canvas3d = await off.evaluate(() => !!document.querySelector('#view3d canvas, canvas.three, #c3d') || document.querySelectorAll('canvas').length >= 2);
     check(canvas3d, 'offline: three.js z cache – dwa canvasy (2D + 3D)');
     await ctx.setOffline(false);
+    await ctx.close();
+  }
+
+  // ---- migracja zapisu ze starej nazwy (RouteLayout → RailSketch) ----
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const pg = await ctx.newPage();
+    await pg.goto(url, { waitUntil: 'networkidle' });
+    await pg.evaluate(() => { localStorage.clear(); const p = { id: '55200', x: 100, y: 100, rot: 0 }; localStorage.setItem('routelayout.v1', JSON.stringify({ version: 2, name: 'Stary', board: { w: 1500, h: 900 }, pieces: [{ ...p, uid: 1 }, { ...p, uid: 2, x: 339.07 }], scenery: [] })); localStorage.setItem('routelayout.lang', 'de'); });
+    await pg.goto(url, { waitUntil: 'networkidle' }); await pg.waitForTimeout(500);
+    const mig = await pg.evaluate(() => ({ n: window.__railsketch.layout.pieces.length, name: window.__railsketch.layout.name, v1: !!localStorage.getItem('railsketch.v1'), lang: localStorage.getItem('railsketch.lang'), old: !!localStorage.getItem('routelayout.v1') }));
+    check(mig.n === 2 && mig.name === 'Stary' && mig.v1 && mig.lang === 'de' && mig.old, `migracja: układ i preferencje z routelayout.* skopiowane do railsketch.* (${JSON.stringify(mig)})`);
     await ctx.close();
   }
 
