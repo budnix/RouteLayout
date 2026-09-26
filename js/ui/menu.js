@@ -111,6 +111,13 @@ export function init(app) {
   $('btn-print-tiles').addEventListener('click', () => { closeMenu(); printLayout(layout, 'tiles', printLabels()); });
   $('btn-print-page').addEventListener('click', () => { closeMenu(); printLayout(layout, 'page', printLabels()); });
 
+  // ---- tabor (obrys do kontroli odstępów) ----
+  const selStock = $('sel-stock');
+  function fillStock() { const cur = prefs.get('stock', 'standard'); selStock.innerHTML = ''; for (const k of ['short', 'standard', 'long']) selStock.append(new Option(t('stock.' + k), k)); selStock.value = cur; }
+  selStock.addEventListener('change', () => { prefs.set('stock', selStock.value); app.runChecks?.(); renderProblemsSafe(); });
+  const renderProblemsSafe = () => app.renderProblems?.();
+  fillStock();
+
   // ---- język ----
   const selLang = $('sel-lang');
   for (const [code, label] of Object.entries(LANGS)) selLang.append(new Option(label, code));
@@ -119,7 +126,7 @@ export function init(app) {
   function applyLanguage() {
     applyDom();
     $('hint').textContent = t(editor.mode === 'draw' ? 'draw.hint' : editor.mode === 'train' ? 'train.hint' : 'pal.hint');
-    app.fillSystems(); app.fillEntry(); app.buildList();
+    app.fillSystems(); app.fillEntry(); app.buildList(); fillStock();
     refreshMenu();
   }
   applyDom();

@@ -231,6 +231,22 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     check(checkLayout(S2).some((q) => q.type === 'spacing'), 'kontrola: równoległe 30 mm bez wspólnego sąsiada → odstęp');
   }
 
+  // ---- obrys taboru: odstęp na łukach i minimalny promień (Node) ----
+  {
+    const { checkLayout, requiredSpacing, STOCK } = await import('../js/checks.js');
+    check(requiredSpacing(Infinity, Infinity, STOCK.long) < 45, `envelope: na prostych wymagany odstęp ${requiredSpacing(Infinity, Infinity, STOCK.long).toFixed(1)} mm < 45 (standard PIKO 61,88 zawsze OK)`);
+    const needStd = requiredSpacing(360, 421.88, STOCK.standard, 'outer', 'inner'), needLong = requiredSpacing(360, 421.88, STOCK.long, 'outer', 'inner');
+    check(needStd < 61.88 && needLong > 61.88 && requiredSpacing(360, 421.88, STOCK.standard) > needStd, `envelope: R1‖R2 (61,88 mm), strony z geometrii: standard potrzebuje ${needStd.toFixed(1)}, długi ${needLong.toFixed(1)} mm`);
+    const L = new Layout(); L.setBoard(2000, 1500);
+    L.add('55211', { x: 800, y: 600, rot: 0 });            // R1, środek (800, 960)
+    L.add('55212', { x: 800, y: 600 - 61.88, rot: 0 });    // R2 współśrodkowy → odstęp osi 61,88
+    const std = checkLayout(L, { stock: 'standard' }), lng = checkLayout(L, { stock: 'long' });
+    check(!std.some((p) => p.type === 'envelope' || p.type === 'radius'), `envelope: R1‖R2 ze standardowym taborem bez uwag (${std.map((p) => p.type).join(',') || 'brak'})`);
+    check(lng.some((p) => p.type === 'envelope') && lng.some((p) => p.type === 'radius' && p.params.r === 360), `envelope: długi tabor → obrysy zachodzą + R1 za ciasny (${lng.map((p) => p.type).join(',')})`);
+    const L2 = new Layout(); L2.setBoard(2000, 1500); L2.add('55200', { x: 200, y: 600, rot: 0 }); L2.add('55200', { x: 200, y: 661.88, rot: 0 });
+    check(!checkLayout(L2, { stock: 'long' }).some((p) => p.type === 'envelope' || p.type === 'spacing'), 'envelope: proste równoległe 61,88 mm – bez uwag nawet dla długiego taboru');
+  }
+
   // ---- jazda próbna (Node) ----
   {
     const { Train, toggleSwitch } = await import('../js/train.js');
@@ -744,6 +760,21 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   check(de.lang === 'de' && de.tab.includes('PIKO') && de.group === 'Gerade Gleise' && de.piece.includes('Gerades Gleis'), 'i18n: przełączenie na DE tłumaczy UI i katalog');
   const pl = await page.evaluate(() => { const sel = document.getElementById('sel-lang'); sel.value = 'pl'; sel.dispatchEvent(new Event('change')); return document.querySelector('#pal-tabs button[data-tab="scenery"]').textContent; });
   check(pl.includes('Sceneria'), 'i18n: powrót do PL');
+
+  // ---- tabor w menu: zmiana obrysu uruchamia kontrolę ----
+  {
+    await page.evaluate(() => { const { layout, editor } = window.__routelayout; editor.cursor = null; editor.selected = null; layout.clear(); layout.add('55211', { x: 800, y: 600, rot: 0 }); localStorage.removeItem('routelayout.stock'); });
+    await page.click('#btn-menu'); await page.waitForTimeout(200);
+    const opts = await page.locator('#sel-stock option').count();
+    await page.selectOption('#sel-stock', 'long'); await page.waitForTimeout(300);
+    const types = await page.evaluate(() => window.__routelayout.problems().map((p) => p.type));
+    check(opts === 3 && types.includes('radius'), `stock UI: wybór długiego taboru → problem „promień” dla R1 (${types.join(',')})`);
+    await page.selectOption('#sel-stock', 'standard'); await page.waitForTimeout(300);
+    const types2 = await page.evaluate(() => window.__routelayout.problems().map((p) => p.type));
+    check(!types2.includes('radius') && (await page.evaluate(() => localStorage.getItem('routelayout.stock'))) === 'standard', 'stock UI: powrót do standardowego taboru czyści problem i zapisuje preferencję');
+    await page.click('#menu [data-close]'); await page.waitForTimeout(100);
+    await page.evaluate(() => { window.__routelayout.layout.clear(); });
+  }
 
   // ---- poziomy w 2D: pasek, wybór poziomu, wyszarzenie i blokada stuknięcia ----
   {

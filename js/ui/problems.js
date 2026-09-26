@@ -2,7 +2,7 @@
 
 import { t } from '../i18n.js';
 import { checkLayout } from '../checks.js';
-import { $ } from './app.js';
+import { $, prefs } from './app.js';
 
 export function init(app) {
   const { layout, editor } = app;
@@ -10,7 +10,7 @@ export function init(app) {
   let timer = null;
 
   function runChecks() {
-    try { problems = checkLayout(layout); } catch (err) { console.error('checks', err); problems = []; }
+    try { problems = checkLayout(layout, { stock: prefs.get('stock', 'standard') }); } catch (err) { console.error('checks', err); problems = []; }
     editor.problems = problems;
     const badge = $('menu-badge');
     badge.textContent = String(problems.length);
@@ -25,7 +25,7 @@ export function init(app) {
     if (!problems.length) { box.innerHTML = `<div class="none">${t('prob.none')}</div>`; return; }
     for (const pr of problems) {
       const row = document.createElement('div');
-      row.className = 'prob' + (pr.type === 'edge' || pr.type === 'grade' ? ' warn' : '');
+      row.className = 'prob' + (pr.type === 'edge' || pr.type === 'grade' || pr.type === 'envelope' || pr.type === 'radius' ? ' warn' : '');
       row.innerHTML = `<span class="dot"></span><span>${t('prob.' + pr.type, pr.params)}</span>`;
       row.addEventListener('click', () => { app.closeMenu?.(); editor.selected = pr.pieces[0]; editor.selectedScenery = null; editor.emit('select'); centerOn(pr.x, pr.y); });
       box.append(row);
