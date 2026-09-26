@@ -24,7 +24,7 @@ A web app (HTML5, ES modules, Canvas 2D + three.js) for designing H0 model railw
 - **Group selection** with a rectangle: move, rotate and delete many pieces at once; **dimension mode** shows lengths, radii and the spacing between parallel tracks; a **Recently used** section sits at the top of the palette
 - **Share a layout as a link** — the whole plan is compressed into the URL, no server involved
 - **Print 1:1** on A4 tiles (lay the sheets on the baseboard and mark the track) or the whole plan on one page — from the browser's print dialog, so "Save as PDF" works on iPad too
-- **Shopping list**: enter how many of each article you already own; the bill of materials shows what is left to buy and copies the list to the clipboard
+- **Shopping list**: enter how many of each article you already own; the bill of materials shows what is left to buy and copies the list to the clipboard; **import a part list** from AnyRail, SCARM or a spreadsheet (CSV/TXT) to fill in what you own
 - Undo/redo, autosave, JSON import/export, PNG export, bill of materials with article numbers
 - Interface in **English, German and Polish** (auto-detected, switchable in the menu)
 - Configurable baseboard size, dark mode, installable PWA that **works offline** (service worker caches the app; each deploy ships a new version)
@@ -99,6 +99,7 @@ Other track systems (Roco, Tillig, Märklin C, Peco…) can be added by extendin
 - `js/fitter.js` — turns normalised strokes into connected pieces (turnout placement where a stroke branches off, attachment to open ends); a greedy piece-by-piece fitter is kept as a fallback for sketches the normaliser cannot follow
 - `js/scenery.js` — scenery catalog with 2D drawing and 3D builders (three.js primitives)
 - `js/view3d.js` — three.js preview (rails, sleepers, ballast, baseboard, scenery), on-demand rendering
+- `js/partlist.js` — part-list import (AnyRail / SCARM / CSV) into the shopping list
 - `js/i18n.js` — UI and catalog translations (EN / DE / PL)
 - `js/main.js` — orchestrator: creates the app context and initialises the UI slices
 - `sw.js` — service worker: the app is cached on first visit and works offline; each deploy ships a new cache version

@@ -11,7 +11,7 @@ const PRECACHE = [
   './', 'index.html', 'manifest.json', 'css/app.css',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   'js/main.js', 'js/catalog.js', 'js/layout.js', 'js/editor2d.js', 'js/view3d.js', 'js/fitter.js', 'js/normalize.js',
-  'js/closer.js', 'js/checks.js', 'js/train.js', 'js/print.js', 'js/share.js', 'js/scenery.js', 'js/spatial.js', 'js/i18n.js',
+  'js/closer.js', 'js/checks.js', 'js/train.js', 'js/print.js', 'js/share.js', 'js/scenery.js', 'js/spatial.js', 'js/partlist.js', 'js/i18n.js',
   'js/ui/app.js', 'js/ui/palette.js', 'js/ui/topbar.js', 'js/ui/sketch.js', 'js/ui/problems.js', 'js/ui/tools.js',
   'js/ui/trainmode.js', 'js/ui/closing.js', 'js/ui/selection.js', 'js/ui/menu.js', 'js/ui/offline.js',
   'vendor/three.module.js', 'vendor/three.core.js', 'vendor/OrbitControls.js',

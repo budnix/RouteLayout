@@ -309,6 +309,23 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     check(tChkB < 500, `perf: checkLayout na ${big.pieces.length} elementach < 500 ms (${tChkB.toFixed(0)} ms)`);
   }
 
+  // ---- import listy części: AnyRail / SCARM / arkusz (Node) ----
+  {
+    const { parsePartList } = await import('../js/partlist.js');
+    const anyrail = 'Quantity\tArticle\tDescription\n12\tPIKO 55200\tG239 Straight 239.07 mm\n8\tPIKO 55212\tR2 Curve 421.88 mm / 30°\n2\tPIKO 55220\tWL Left turnout 15°\n';
+    const a = parsePartList(anyrail);
+    check(JSON.stringify(a.items) === JSON.stringify([{ id: '55200', n: 12 }, { id: '55212', n: 8 }, { id: '55220', n: 2 }]) && a.unknown.length === 0, 'partlist: AnyRail TSV (ilość w pierwszej kolumnie, nagłówek pominięty)');
+    const scarm = '55212 | R2 Curve 421.88mm/30° | 8\n55200 | G239 | 3\n55221 | WR | 1\nMärklin 24188 | 188 mm | 4\n';
+    const b = parsePartList(scarm);
+    check(b.items.find((i) => i.id === '55212').n === 8 && b.items.find((i) => i.id === '55200').n === 3 && b.items.length === 3 && b.unknown.length === 1, 'partlist: SCARM (ilość w ostatniej kolumnie, obcy artykuł → nierozpoznany)');
+    const sheet = 'G239;12\nR2, 6 szt.\n4 x 55220\nWL 2 Stk\n55212\n';
+    const c = parsePartList(sheet).items;
+    check(c.find((i) => i.id === '55200').n === 12 && c.find((i) => i.id === '55212').n === 7 && c.find((i) => i.id === '55220').n === 6, 'partlist: kody geometrii, sufiksy szt./Stk/x, sumowanie duplikatów, brak ilości = 1');
+    check(parsePartList('').items.length === 0 && parsePartList('hello world').items.length === 0, 'partlist: pusty/bez numerów → brak pozycji');
+    const bed = parsePartList('55400;5').items;
+    check(bed.length === 1 && bed[0].id === '55400', 'partlist: numery z podsypką 554xx trafiają do własnego artykułu');
+  }
+
   // ---- offline: lista precache w sw.js pokrywa wszystkie pliki aplikacji (Node, statycznie) ----
   {
     const sw = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
@@ -684,6 +701,21 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   check(de.lang === 'de' && de.tab.includes('PIKO') && de.group === 'Gerade Gleise' && de.piece.includes('Gerades Gleis'), 'i18n: przełączenie na DE tłumaczy UI i katalog');
   const pl = await page.evaluate(() => { const sel = document.getElementById('sel-lang'); sel.value = 'pl'; sel.dispatchEvent(new Event('change')); return document.querySelector('#pal-tabs button[data-tab="scenery"]').textContent; });
   check(pl.includes('Sceneria'), 'i18n: powrót do PL');
+
+  // ---- import listy części przez menu: plik → kolumna „mam” ----
+  {
+    await page.click('#btn-menu'); await page.waitForTimeout(200);
+    await page.setInputFiles('#file-import-parts', { name: 'parts.csv', mimeType: 'text/csv', buffer: Buffer.from('Quantity;Article;Description\n3;PIKO 55200;G239\n2;55212;R2\n') });
+    await page.waitForTimeout(300);
+    const have = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#bom input.have')].map((i) => [i.dataset.id, +i.value])));
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.have') || '{}'));
+    check(stored['55200'] === 3 && stored['55212'] === 2, `partlist UI: import ustawia „mam” i zapisuje w prefs (${JSON.stringify(stored)})`);
+    check(have['55200'] === 3 || have['55200'] === undefined, 'partlist UI: wartości w tabeli BOM odpowiadają prefs');
+    const toastText = await page.locator('#toast').textContent();
+    check(/2/.test(toastText) && /5/.test(toastText), `partlist UI: toast podsumowuje import („${toastText}”)`);
+    await page.evaluate(() => { localStorage.removeItem('routelayout.have'); });
+    await page.click('#menu [data-close]'); await page.waitForTimeout(100);
+  }
 
   // ---- offline: service worker zapisuje aplikację i uruchamia ją bez sieci ----
   {

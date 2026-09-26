@@ -5,6 +5,7 @@ const STORAGE_KEY = 'routelayout.lang';
 
 const DICT = {
   pl: {
+    'menu.importParts': 'Import listy części', 'menu.importPartsHint': 'Lista części z AnyRail, SCARM lub arkusza (CSV/TXT) – ilości trafiają do kolumny „mam”', 'parts.done': 'Wczytano {n} artykułów ({q} szt.) jako „mam”.', 'parts.none': 'Nie znaleziono numerów artykułów PIKO (55xxx) ani kodów (G239, R2…) w pliku.', 'parts.unknown': 'Nierozpoznane wiersze: {n}.',
     'offline.ready': 'Aplikacja zapisana w pamięci – działa też bez internetu.', 'offline.updated': 'Dostępna nowa wersja – przeładuj stronę, aby ją uruchomić.',
     'app.title': 'RouteLayout – makiety H0 (PIKO A-Gleis)',
     'app.description': 'Planer układów torów H0 na torach PIKO A-Gleis z podglądem 3D. Działa na iPadzie i iPhonie.',
@@ -54,6 +55,7 @@ const DICT = {
     'group.flex': 'Flex', 'group.accessory': 'Akcesoria',
   },
   en: {
+    'menu.importParts': 'Import part list', 'menu.importPartsHint': 'Part list from AnyRail, SCARM or a spreadsheet (CSV/TXT) – quantities go into the "have" column', 'parts.done': 'Loaded {n} articles ({q} pcs.) as "have".', 'parts.none': 'No PIKO article numbers (55xxx) or codes (G239, R2…) found in the file.', 'parts.unknown': 'Unrecognised lines: {n}.',
     'offline.ready': 'App stored on this device – it also works offline.', 'offline.updated': 'A new version is available – reload the page to use it.',
     'app.title': 'RouteLayout – H0 track planner (PIKO A-Gleis)',
     'app.description': 'H0 model railway track planner for PIKO A-Gleis with 3D preview. Works on iPad and iPhone.',
@@ -103,6 +105,7 @@ const DICT = {
     'group.flex': 'Flex', 'group.accessory': 'Accessories',
   },
   de: {
+    'menu.importParts': 'Stückliste importieren', 'menu.importPartsHint': 'Stückliste aus AnyRail, SCARM oder Tabelle (CSV/TXT) – Mengen landen in der Spalte „vorhanden“', 'parts.done': '{n} Artikel ({q} Stk.) als „vorhanden“ übernommen.', 'parts.none': 'Keine PIKO-Artikelnummern (55xxx) oder Codes (G239, R2…) in der Datei gefunden.', 'parts.unknown': 'Nicht erkannte Zeilen: {n}.',
     'offline.ready': 'App auf diesem Gerät gespeichert – funktioniert auch offline.', 'offline.updated': 'Neue Version verfügbar – Seite neu laden, um sie zu nutzen.',
     'app.title': 'RouteLayout – H0-Gleisplaner (PIKO A-Gleis)',
     'app.description': 'Gleisplaner für Modellbahn H0 mit PIKO A-Gleis und 3D-Vorschau. Läuft auf iPad und iPhone.',

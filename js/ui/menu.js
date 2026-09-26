@@ -4,6 +4,7 @@
 import { t, pieceName, applyDom, setLang, getLang, LANGS } from '../i18n.js';
 import { printLayout, buildPrintView, removePrintView } from '../print.js';
 import { encodeShare, decodeShare, shareUrl } from '../share.js';
+import { parsePartList } from '../partlist.js';
 import { $, prefs, toast, errMsg } from './app.js';
 
 export function init(app) {
@@ -25,6 +26,23 @@ export function init(app) {
   function shoppingList() {
     return layout.bom().map(({ id, n, def }) => { const buy = Math.max(0, n - haveOf(id)); return buy ? `${buy} × ${id} ${def.code} — ${pieceName(def)}` : null; }).filter(Boolean).join('\n');
   }
+  /** Lista części z AnyRail/SCARM/arkusza → „mam” (ilości zastępują wcześniejsze dla wczytanych artykułów). */
+  function importPartList(text) {
+    const { items, unknown } = parsePartList(text);
+    if (!items.length) { toast(t('parts.none'), 6000); return { items, unknown }; }
+    let q = 0;
+    for (const { id, n } of items) { haveMap[id] = n; q += n; }
+    prefs.setJSON('have', haveMap);
+    refreshMenu();
+    toast(t('parts.done', { n: items.length, q }) + (unknown.length ? ' ' + t('parts.unknown', { n: unknown.length }) : ''), 7000);
+    return { items, unknown };
+  }
+  $('btn-import-parts').addEventListener('click', () => $('file-import-parts').click());
+  $('file-import-parts').addEventListener('change', async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    try { importPartList(await f.text()); } catch (err) { toast(t('error.load') + errMsg(err)); }
+    e.target.value = '';
+  });
   $('btn-copy-list').addEventListener('click', async () => {
     const text = shoppingList() || t('bom.complete');
     try { await navigator.clipboard.writeText(text); toast(t('bom.copied'), 3000); }
@@ -107,5 +125,5 @@ export function init(app) {
   applyDom();
 
   Object.assign(app, { refreshMenu, closeMenu, loadFromHash, shoppingList });
-  app.expose({ buildPrintView, removePrintView, shoppingList, encodeShare, decodeShare, loadFromHash });
+  app.expose({ buildPrintView, removePrintView, shoppingList, encodeShare, decodeShare, loadFromHash, importPartList, parsePartList });
 }
