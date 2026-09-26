@@ -100,7 +100,8 @@ Other track systems (Roco, Tillig, Märklin C, Peco…) can be added by extendin
 - `js/scenery.js` — scenery catalog with 2D drawing and 3D builders (three.js primitives)
 - `js/view3d.js` — three.js preview (rails, sleepers, ballast, baseboard, scenery), on-demand rendering
 - `js/i18n.js` — UI and catalog translations (EN / DE / PL)
-- `js/main.js` — UI wiring
+- `js/main.js` — orchestrator: creates the app context and initialises the UI slices
+- `js/ui/` — UI split into vertical slices (`palette`, `topbar`, `sketch`, `problems`, `tools`, `trainmode`, `closing`, `selection`, `menu`), each exporting `init(app)`
 - `vendor/` — three.js (MIT) copied from npm, no CDN
 
 ## Tests and CI

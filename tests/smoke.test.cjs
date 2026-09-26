@@ -266,6 +266,20 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     check(M.pieces[0].angles.length === 1 && M.pieces[1].z === 50, 'obrotnica/wysokości: zapis i odczyt JSON');
   }
 
+  // ---- struktura UI: pionowe plastry (Node, statycznie) ----
+  {
+    const uiDir = path.join(ROOT, 'js', 'ui');
+    const slices = fs.readdirSync(uiDir).filter((f) => f.endsWith('.js') && f !== 'app.js').sort();
+    const mainSrc = fs.readFileSync(path.join(ROOT, 'js', 'main.js'), 'utf8');
+    check(mainSrc.split('\n').length < 80, 'ui: main.js to tylko orkiestrator (< 80 linii)');
+    check(slices.length >= 9 && slices.every((f) => /export function init\(app\)/.test(fs.readFileSync(path.join(uiDir, f), 'utf8'))), 'ui: każdy plaster js/ui/* eksportuje init(app) (' + slices.join(', ') + ')');
+    check(slices.every((f) => mainSrc.includes(`./ui/${f}`)), 'ui: main.js importuje każdy plaster');
+    const cross = slices.filter((f) => /from ['"]\.\/(?!app\.js)[^'"]+['"]/.test(fs.readFileSync(path.join(uiDir, f), 'utf8')));
+    check(cross.length === 0, 'ui: plastry nie importują się nawzajem (tylko ./app.js) ' + (cross.length ? cross.join(',') : ''));
+    const versioned = /from ['"]\.{1,2}\/[^'"]+\.js['"]/;
+    check(slices.concat(['app.js']).every((f) => versioned.test(fs.readFileSync(path.join(uiDir, f), 'utf8'))), 'ui: importy plastrów pasują do wzorca cache-bustingu w pages.yml');
+  }
+
   // ---- desktop ----
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   hook(page, 'desktop');
@@ -275,6 +289,9 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
 
   const demo = await page.evaluate(() => JSON.parse(localStorage.getItem('routelayout.v1')));
   check(demo && demo.pieces.length === 18, 'demo: pętla z 18 elementów zapisana w localStorage');
+  const hookKeys = ['layout', 'editor', 'view3d', 'insert', 'closeFromCursor', 'problems', 'train', 'setTrainMode', 'buildPrintView', 'removePrintView', 'shoppingList', 'setSystem', 'getSystem', 'encodeShare', 'decodeShare', 'loadFromHash', 'recent'];
+  const missing = await page.evaluate((keys) => keys.filter((k) => window.__routelayout[k] === undefined), hookKeys);
+  check(missing.length === 0, 'ui: window.__routelayout ma pełne API po podziale na plastry' + (missing.length ? ' (brak: ' + missing.join(',') + ')' : ''));
 
   // auto-rysowanie: wyczyść, wstaw WL, potem R9 na odgałęzienie – końce muszą się zgadzać z geometrią Piko
   const auto = await page.evaluate(async () => {
