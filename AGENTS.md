@@ -53,6 +53,8 @@ Reviewers: a PR that changes any of the above without touching `AGENTS.md` is in
 | `js/ui/closing.js` | Loop closing: `app.closeFromCursor` (HUD button) and `app.autoClose(added)` after a sketch. |
 | `js/ui/selection.js` | Selection bar fields per selection type and global keyboard shortcuts. |
 | `js/ui/menu.js` | Menu: name, board size/colour, clear, export/import/PNG, share link + `app.loadFromHash`, print, language (`applyLanguage`), BOM with shopping list (`have` pref). Provides `app.closeMenu`, `app.refreshMenu`. |
+| `sw.js` | Service worker (offline mode). `PRECACHE` lists every app file (a test compares it with the files on disk: add new modules here). Cache name = `routelayout-<VERSION>`; `__SW_VERSION__` is replaced by the commit sha in `pages.yml`, so each deploy installs a fresh cache and drops the old one on activate (`skipWaiting` + `clients.claim`). Navigations and the local `dev` build are network-first with cache fallback; versioned assets in production are cache-first, matched with `ignoreSearch` so `?v=sha` URLs hit the plain precached entries. |
+| `js/ui/offline.js` | Registers `sw.js`, toasts once when the app is stored (`offline.ready`) and when a new worker takes over (`offline.updated`, `controllerchange` with a previous controller). Exposes `offline` state on the hook. |
 | `tests/smoke.test.cjs` | The whole test suite (Node model tests + Playwright browser tests). `npm test`. |
 | `.github/workflows/test.yml` | Runs `npm test` on every push/PR. |
 | `.github/workflows/pages.yml` | `workflow_run` after a green Test on `main`: cache-busts module URLs (`?v=<sha>`), deploys to GitHub Pages. |
@@ -102,6 +104,7 @@ When you touch these rules, run the "brzeg" (edge-case) tests — every one of t
 
 ## Testing
 
+- Offline test: a separate browser context registers the worker, waits until the cache holds the precache list, then `context.setOffline(true)` and reloads; the app must boot from cache. Service workers are per context, so this must not share the desktop page's context. Locally the worker is `dev` (network-first), so no stale files while developing.
 - Performance: the suite builds a 360-piece and a 1440-piece layout and asserts `ports()`/`checkLayout` scale roughly linearly (4× pieces < 8× time, best of several runs) and that the spatial-hash results equal a brute-force reference. A new O(n²) scan will fail that check.
 
 ```sh
@@ -140,4 +143,3 @@ npm test                            # tests/smoke.test.cjs; screenshots in test-
 - The clearance check uses the axis distance only (no rolling-stock envelope); 55 mm is a rule of thumb for H0 double-deck stock.
 - The turntable is generic (`TT`, adjustable ⌀), not a PIKO article; the bill of materials lists it as `TT`.
 - Article number 55215 (R1 7.5°) is flagged `verified: false` in the catalog.
-- No service worker; offline use relies on browser cache only.

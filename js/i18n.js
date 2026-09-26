@@ -5,6 +5,7 @@ const STORAGE_KEY = 'routelayout.lang';
 
 const DICT = {
   pl: {
+    'offline.ready': 'Aplikacja zapisana w pamięci – działa też bez internetu.', 'offline.updated': 'Dostępna nowa wersja – przeładuj stronę, aby ją uruchomić.',
     'app.title': 'RouteLayout – makiety H0 (PIKO A-Gleis)',
     'app.description': 'Planer układów torów H0 na torach PIKO A-Gleis z podglądem 3D. Działa na iPadzie i iPhonie.',
     'draw.toggle': 'Tryb rysowania: szkicuj tor palcem lub myszą', 'draw.grid': 'Siatka pomocnicza', 'draw.undoStroke': 'Cofnij ostatnią kreskę',
@@ -53,6 +54,7 @@ const DICT = {
     'group.flex': 'Flex', 'group.accessory': 'Akcesoria',
   },
   en: {
+    'offline.ready': 'App stored on this device – it also works offline.', 'offline.updated': 'A new version is available – reload the page to use it.',
     'app.title': 'RouteLayout – H0 track planner (PIKO A-Gleis)',
     'app.description': 'H0 model railway track planner for PIKO A-Gleis with 3D preview. Works on iPad and iPhone.',
     'draw.toggle': 'Draw mode: sketch track with finger or mouse', 'draw.grid': 'Guide grid', 'draw.undoStroke': 'Undo last stroke',
@@ -101,6 +103,7 @@ const DICT = {
     'group.flex': 'Flex', 'group.accessory': 'Accessories',
   },
   de: {
+    'offline.ready': 'App auf diesem Gerät gespeichert – funktioniert auch offline.', 'offline.updated': 'Neue Version verfügbar – Seite neu laden, um sie zu nutzen.',
     'app.title': 'RouteLayout – H0-Gleisplaner (PIKO A-Gleis)',
     'app.description': 'Gleisplaner für Modellbahn H0 mit PIKO A-Gleis und 3D-Vorschau. Läuft auf iPad und iPhone.',
     'draw.toggle': 'Zeichenmodus: Gleisverlauf mit Finger oder Maus skizzieren', 'draw.grid': 'Hilfsraster', 'draw.undoStroke': 'Letzten Strich zurücknehmen',

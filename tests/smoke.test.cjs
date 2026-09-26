@@ -309,6 +309,17 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     check(tChkB < 500, `perf: checkLayout na ${big.pieces.length} elementach < 500 ms (${tChkB.toFixed(0)} ms)`);
   }
 
+  // ---- offline: lista precache w sw.js pokrywa wszystkie pliki aplikacji (Node, statycznie) ----
+  {
+    const sw = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
+    const listed = new Set([...sw.matchAll(/'([^']+)'/g)].map((m) => m[1]));
+    const walk = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((d) => d.isDirectory() ? walk(`${dir}/${d.name}`) : [`${dir}/${d.name}`]);
+    const files = ['index.html', 'manifest.json', ...walk('js'), ...walk('css'), ...walk('icons'), ...walk('vendor').filter((f) => f.endsWith('.js'))];
+    const missing = files.filter((f) => !listed.has(f));
+    check(missing.length === 0, 'offline: PRECACHE w sw.js zawiera każdy plik aplikacji' + (missing.length ? ' (brak: ' + missing.join(', ') + ')' : ''));
+    check(/__SW_VERSION__/.test(sw) && /__SW_VERSION__/.test(fs.readFileSync(path.join(ROOT, '.github/workflows/pages.yml'), 'utf8')), 'offline: wersja SW wstawiana przy deployu (pages.yml)');
+  }
+
   // ---- struktura UI: pionowe plastry (Node, statycznie) ----
   {
     const uiDir = path.join(ROOT, 'js', 'ui');
@@ -673,6 +684,40 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   check(de.lang === 'de' && de.tab.includes('PIKO') && de.group === 'Gerade Gleise' && de.piece.includes('Gerades Gleis'), 'i18n: przełączenie na DE tłumaczy UI i katalog');
   const pl = await page.evaluate(() => { const sel = document.getElementById('sel-lang'); sel.value = 'pl'; sel.dispatchEvent(new Event('change')); return document.querySelector('#pal-tabs button[data-tab="scenery"]').textContent; });
   check(pl.includes('Sceneria'), 'i18n: powrót do PL');
+
+  // ---- offline: service worker zapisuje aplikację i uruchamia ją bez sieci ----
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const off = await ctx.newPage();
+    hook(off, 'offline');
+    await off.goto(url, { waitUntil: 'networkidle' });
+    const swState = await off.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+      for (let i = 0; i < 100; i++) {
+        const keys = await caches.keys();
+        const c = keys.length ? await caches.open(keys[0]) : null;
+        const have = c ? (await c.keys()).length : 0;
+        if (have >= 30) return { keys, have, hasMain: !!(await c.match('js/main.js')), hasIndex: !!(await c.match('index.html')) };
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return { keys: await caches.keys(), have: 0 };
+    });
+    check(swState.keys.some((k) => k.startsWith('routelayout-')) && swState.hasMain && swState.hasIndex, `offline: cache "${swState.keys[0]}" zawiera ${swState.have} plików`);
+    const exposed = await off.evaluate(() => window.__routelayout.offline && window.__routelayout.offline.supported);
+    check(exposed === true, 'offline: plaster ui/offline.js wystawia stan');
+    await ctx.setOffline(true);
+    let booted = false, offlinePieces = 0;
+    try {
+      await off.goto(url, { waitUntil: 'load' });
+      await off.waitForFunction(() => window.__routelayout && window.__routelayout.layout, null, { timeout: 8000 });
+      booted = true; offlinePieces = await off.evaluate(() => window.__routelayout.layout.pieces.length);
+    } catch (e) { console.log('   offline boot:', e.message.split('\n')[0]); }
+    check(booted && offlinePieces === 18, `offline: strona wczytana bez sieci, demo z ${offlinePieces} elementów`);
+    const canvas3d = await off.evaluate(() => !!document.querySelector('#view3d canvas, canvas.three, #c3d') || document.querySelectorAll('canvas').length >= 2);
+    check(canvas3d, 'offline: three.js z cache – dwa canvasy (2D + 3D)');
+    await ctx.setOffline(false);
+    await ctx.close();
+  }
 
   // ---- telefon ----
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

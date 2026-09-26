@@ -27,7 +27,7 @@ A web app (HTML5, ES modules, Canvas 2D + three.js) for designing H0 model railw
 - **Shopping list**: enter how many of each article you already own; the bill of materials shows what is left to buy and copies the list to the clipboard
 - Undo/redo, autosave, JSON import/export, PNG export, bill of materials with article numbers
 - Interface in **English, German and Polish** (auto-detected, switchable in the menu)
-- Configurable baseboard size, dark mode, PWA manifest
+- Configurable baseboard size, dark mode, installable PWA that **works offline** (service worker caches the app; each deploy ships a new version)
 
 ## Running locally
 
@@ -101,6 +101,7 @@ Other track systems (Roco, Tillig, Märklin C, Peco…) can be added by extendin
 - `js/view3d.js` — three.js preview (rails, sleepers, ballast, baseboard, scenery), on-demand rendering
 - `js/i18n.js` — UI and catalog translations (EN / DE / PL)
 - `js/main.js` — orchestrator: creates the app context and initialises the UI slices
+- `sw.js` — service worker: the app is cached on first visit and works offline; each deploy ships a new cache version
 - `js/ui/` — UI split into vertical slices (`palette`, `topbar`, `sketch`, `problems`, `tools`, `trainmode`, `closing`, `selection`, `menu`), each exporting `init(app)`
 - `vendor/` — three.js (MIT) copied from npm, no CDN
 

@@ -35,7 +35,8 @@ jobs:
           V="${{ github.event.workflow_run.head_sha || github.sha }}"; V="${V:0:8}"
           sed -i -E "s#(src=\"js/main\.js|href=\"css/app\.css|\./vendor/three\.module\.js)\"#\1?v=$V\"#g" index.html
           find js vendor -name '*.js' -exec sed -i -E "s#(from ['\"]\.{1,2}/[^'\"]+\.js)(['\"])#\1?v=$V\2#g" {} +
-          grep -c "v=$V" index.html js/main.js vendor/three.module.js
+          sed -i "s/__SW_VERSION__/$V/" sw.js
+          grep -c "$V" index.html js/main.js vendor/three.module.js sw.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
