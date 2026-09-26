@@ -21,6 +21,8 @@ A web app (HTML5, ES modules, Canvas 2D + three.js) for designing H0 model railw
 - **Turntable** as a track element: tap anywhere on the rim to create a connection there (1° steps), drag a track onto the rim and it snaps radially, rotate the bridge, set the diameter
 - **Heights**: every piece has a start height and a grade; set *height* to lift a whole connected group, *grade %* to build a ramp (pieces downstream rise with it). Ends only connect at matching heights — a helix shows its gap honestly. In 3D the track follows the profile with piers under viaducts; a track through a hill becomes a tunnel
 - **Scenery**: trees, houses, station, warehouse, church, roads, platforms, turntable, tunnel portal, water tower, pond, hill — flat icons in 2D, simple procedural solids in 3D (no external models); move, rotate and resize them
+- **Group selection** with a rectangle: move, rotate and delete many pieces at once; **dimension mode** shows lengths, radii and the spacing between parallel tracks; a **Recently used** section sits at the top of the palette
+- **Share a layout as a link** — the whole plan is compressed into the URL, no server involved
 - **Print 1:1** on A4 tiles (lay the sheets on the baseboard and mark the track) or the whole plan on one page — from the browser's print dialog, so "Save as PDF" works on iPad too
 - **Shopping list**: enter how many of each article you already own; the bill of materials shows what is left to buy and copies the list to the clipboard
 - Undo/redo, autosave, JSON import/export, PNG export, bill of materials with article numbers

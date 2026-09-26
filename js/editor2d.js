@@ -27,6 +27,9 @@ export class Editor2D {
     this.normalizer = null;        // fn(points) -> points | null; normalizacja kreski po puszczeniu palca
     this.problems = [];            // znaczniki kontroli wykonalności { type, x, y }
     this.train = null;             // symulacja jazdy (Train) – rysowana w trybie 'train'
+    this.selection = new Set();    // zaznaczenie grupowe (elementy toru)
+    this.marquee = null;           // prostokąt zaznaczania { x0, y0, x1, y1 } (świat)
+    this.dims = false;             // tryb wymiarów
     this.listeners = new Set();
     this.dpr = Math.min(devicePixelRatio || 1, 3);
 
@@ -38,7 +41,15 @@ export class Editor2D {
     canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     new ResizeObserver(() => this.resize()).observe(canvas.parentElement);
-    this._unsubscribe = layout.onChange(() => { this.validateCursor(); this.draw(); });
+    this._unsubscribe = layout.onChange((kind) => {
+      this.validateCursor();
+      if (kind === 'change') {   // zaznaczenia nie mogą wskazywać usuniętych elementów
+        if (this.selected && !layout.pieces.includes(this.selected)) { this.selected = null; this.emit('select'); }
+        if (this.selectedScenery && !layout.scenery.includes(this.selectedScenery)) { this.selectedScenery = null; this.emit('select'); }
+        for (const p of this.selection) if (!layout.pieces.includes(p)) this.selection.delete(p);
+      }
+      this.draw();
+    });
     this.resize();
   }
 
@@ -140,6 +151,7 @@ export class Editor2D {
   setAidGrid(enabled, size) { this.aidGrid = { enabled, size: Math.max(5, size || 50) }; this.draw(); }
 
   deleteSelected() {
+    if (this.selection.size > 1) { const list = [...this.selection]; this.selection.clear(); this.selected = null; this.layout.removeMany(list); this.emit('select'); return; }
     if (this.selectedScenery) { const it = this.selectedScenery; this.selectedScenery = null; this.layout.removeScenery(it); this.emit('select'); return; }
     if (!this.selected) return;
     const p = this.selected;
@@ -148,6 +160,10 @@ export class Editor2D {
     this.emit('select');
   }
   rotateSelected(deg) {
+    if (this.selection.size > 1) {
+      const list = [...this.selection]; let cx = 0, cy = 0; for (const p of list) { cx += p.x; cy += p.y; } cx /= list.length; cy /= list.length;
+      this.layout.rotateMany(list, deg, cx, cy); return;
+    }
     if (this.selected && BY_ID[this.selected.id].turntable) { this.layout.setBridge(this.selected, (this.selected.bridge || 0) + deg); return; }
     if (this.selectedScenery) this.layout.moveScenery(this.selectedScenery, this.selectedScenery.x, this.selectedScenery.y, this.selectedScenery.rot + deg);
     else if (this.selected) this.layout.rotate(this.selected, deg);
@@ -177,6 +193,7 @@ export class Editor2D {
     const w = this.toWorld(p.x, p.y);
     if (this.mode === 'draw') { this.stroke = [[w.x, w.y]]; this.drag = { start: p, moved: false, draw: true }; return; }
     if (this.mode === 'train') { const piece = this.layout.hitTest(w.x, w.y, Math.max(14 / this.view.scale, 10)); this.drag = { start: p, moved: false, piece: null, tapPiece: piece, ox: this.view.ox, oy: this.view.oy }; return; }
+    if (this.mode === 'marquee') { this.marquee = { x0: w.x, y0: w.y, x1: w.x, y1: w.y }; this.drag = { start: p, moved: false, marquee: true }; return; }
     const tol = 14 / this.view.scale; // ~14 px
     const port = this.nearestOpenPort(w, tol);
     const piece = this.layout.hitTest(w.x, w.y, Math.max(tol, 10));
@@ -184,7 +201,8 @@ export class Editor2D {
     const scen = !port && !piece && !rim ? this.layout.hitScenery(w.x, w.y) : null;
     this.drag = { start: p, last: p, moved: false, piece: port || rim ? null : piece, scen, port, rim, ox: this.view.ox, oy: this.view.oy, px: piece?.x ?? scen?.x, py: piece?.y ?? scen?.y };
     if (rim) { this.selected = rim.tt; this.selectedScenery = null; this.emit('select'); this.draw(); return; }
-    if (piece && !port) { this.selected = piece; this.selectedScenery = null; this.emit('select'); this.draw(); }
+    if (piece && !port && this.selection.has(piece)) { this.drag.group = [...this.selection].map((q) => ({ q, x: q.x, y: q.y })); this.drag.piece = null; }
+    else if (piece && !port) { this.selection.clear(); this.selected = piece; this.selectedScenery = null; this.emit('select'); this.draw(); }
     else if (scen) { this.selectedScenery = scen; this.selected = null; this.emit('select'); this.draw(); }
   }
 
@@ -205,6 +223,14 @@ export class Editor2D {
     }
     const d = this.drag;
     if (!d) return;
+    if (d.marquee) { const w = this.toWorld(p.x, p.y); this.marquee.x1 = w.x; this.marquee.y1 = w.y; d.moved = true; this.draw(); return; }
+    if (d.group) {
+      if (!d.moved && Math.hypot(p.x - d.start.x, p.y - d.start.y) < 6) return;
+      d.moved = true;
+      const dx = (p.x - d.start.x) / this.view.scale, dy = (p.y - d.start.y) / this.view.scale;
+      for (const g of d.group) { g.q.x = g.x + dx; g.q.y = g.y + dy; }
+      this.layout.emit('drag'); return;
+    }
     if (d.draw) { const w = this.toWorld(p.x, p.y); this.stroke?.push([w.x, w.y]); d.moved = true; this.draw(); return; }
     if (!d.moved && Math.hypot(p.x - d.start.x, p.y - d.start.y) < 6) return;
     d.moved = true;
@@ -226,6 +252,22 @@ export class Editor2D {
     if (this.pinch) { if (this.pointers.size < 2) this.pinch = null; this.drag = null; return; }
     const d = this.drag; this.drag = null;
     if (!d) return;
+    if (d.marquee) {
+      const m = this.marquee; this.marquee = null;
+      const found = d.moved && m ? this.layout.piecesInRect(m.x0, m.y0, m.x1, m.y1) : [];
+      this.selection = new Set(found);
+      this.selected = found.length === 1 ? found[0] : null; this.selectedScenery = null;
+      this.setMode('edit'); this.emit('select'); this.draw();
+      return;
+    }
+    if (d.group) {
+      if (!d.moved) { return; }
+      // przywróć stan sprzed i zapisz jako jeden krok undo
+      const dx = d.group[0].q.x - d.group[0].x, dy = d.group[0].q.y - d.group[0].y;
+      for (const g of d.group) { g.q.x = g.x; g.q.y = g.y; }
+      this.layout.moveMany(d.group.map((g) => g.q), dx, dy, true);
+      return;
+    }
     if (d.draw) {
       if (this.stroke && this.stroke.length > 3) {
         let fixed = null;
@@ -242,7 +284,7 @@ export class Editor2D {
       if (this.mode === 'train') { if (d.tapPiece) this.emit('switch', d.tapPiece); return; }
       if (d.rim) { const port = this.layout.addRimPort(d.rim.tt, d.rim.angle); if (port) this.setCursor(port); return; }
       if (d.port) { this.setCursor(d.port); this.selected = d.port.piece; this.selectedScenery = null; this.emit('select'); }
-      else if (!d.piece && !d.scen) { this.selected = null; this.selectedScenery = null; this.emit('select'); this.draw(); }
+      else if (!d.piece && !d.scen) { this.selected = null; this.selectedScenery = null; this.selection.clear(); this.emit('select'); this.draw(); }
       return;
     }
     if (d.scen) {
@@ -374,8 +416,21 @@ export class Editor2D {
       ctx.stroke();
     }
 
+    // zaznaczenie grupowe
+    if (this.selection.size) {
+      ctx.strokeStyle = getCSS('--c-accent', '#ff7a1a'); ctx.lineWidth = 4 / s + 2; ctx.setLineDash([12 / s, 8 / s]);
+      for (const sg of segs) if (this.selection.has(sg.piece)) { tracePath(sg.pts); ctx.stroke(); }
+      ctx.setLineDash([]);
+    }
+    if (this.marquee) {
+      const m = this.marquee;
+      ctx.fillStyle = 'rgba(29,111,214,0.12)'; ctx.strokeStyle = 'rgba(29,111,214,0.9)'; ctx.lineWidth = 1.5 / s; ctx.setLineDash([6 / s, 4 / s]);
+      ctx.fillRect(m.x0, m.y0, m.x1 - m.x0, m.y1 - m.y0); ctx.strokeRect(m.x0, m.y0, m.x1 - m.x0, m.y1 - m.y0); ctx.setLineDash([]);
+    }
+    if (this.dims) this.drawDims(ctx, s);
+
     // zaznaczenie
-    if (this.selected) {
+    if (this.selected && this.selection.size <= 1) {
       ctx.strokeStyle = getCSS('--c-accent', '#ff7a1a'); ctx.lineWidth = 4 / s + 2;
       ctx.setLineDash([12 / s, 8 / s]);
       for (const sg of segs) if (sg.piece === this.selected) { tracePath(sg.pts); ctx.stroke(); }
@@ -476,6 +531,57 @@ function tint(hex, base) {
   const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
   return `rgb(${c.map((v, i) => Math.round(v * 0.18 + b[i] * 0.82)).join(',')})`;
 }
+
+/** Tryb wymiarów: długości prostych, promienie łuków, odstępy równoległych prostych, blat. */
+Editor2D.prototype.drawDims = function drawDims(ctx, s) {
+  const font = `${11 / this.view.scale}px system-ui, sans-serif`;
+  ctx.font = font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const label = (x, y, text, color = '#1d6fd6') => {
+    const w = ctx.measureText(text).width + 8 / this.view.scale, h = 15 / this.view.scale;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(x - w / 2, y - h / 2, w, h);
+    ctx.fillStyle = color; ctx.fillText(text, x, y);
+  };
+  const fmt = (v) => (Math.round(v * 10) / 10).toString().replace('.', ',');
+  const { w, h } = this.layout.board;
+  ctx.strokeStyle = 'rgba(29,111,214,0.8)'; ctx.lineWidth = 1.2 / s;
+  // blat
+  ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(w, -30); ctx.moveTo(-30, 0); ctx.lineTo(-30, h); ctx.stroke();
+  label(w / 2, -30, `${w} mm`); ctx.save(); ctx.translate(-30, h / 2); ctx.rotate(-Math.PI / 2); label(0, 0, `${h} mm`); ctx.restore();
+  // elementy
+  const straights = [];
+  for (const piece of this.layout.pieces) {
+    const def = BY_ID[piece.id];
+    const seg = geoOf(piece).segments[0];
+    if (!seg) continue;
+    if (seg.type === 'arc') {
+      const a = d2r((seg.a0 + seg.a1) / 2);
+      const m = Layout.localToWorld(piece, seg.cx + (seg.r + 45) * Math.cos(a), seg.cy + (seg.r + 45) * Math.sin(a));
+      label(m.x, m.y, `R ${fmt(seg.r)} · ${fmt(Math.abs(seg.a1 - seg.a0))}°`);
+    } else if (!def.turntable && def.group === 'straight') {
+      const L = Math.hypot(seg.x2 - seg.x1, seg.y2 - seg.y1);
+      const m = Layout.localToWorld(piece, (seg.x1 + seg.x2) / 2, (seg.y1 + seg.y2) / 2 + 26);
+      label(m.x, m.y, `${fmt(L)} mm`);
+      const p0 = Layout.localToWorld(piece, seg.x1, seg.y1), p1 = Layout.localToWorld(piece, seg.x2, seg.y2);
+      straights.push({ piece, p0, p1, a: piece.rot });
+    }
+  }
+  // odstępy równoległych prostych (kąt ±1,5°, odstęp 40–250 mm, wspólny odcinek > 50 mm)
+  const done = new Set();
+  for (let i = 0; i < straights.length; i++) for (let j = i + 1; j < straights.length; j++) {
+    const A = straights[i], B = straights[j];
+    const da = Math.abs(norm(A.a - B.a)); if (Math.min(da, 180 - da) > 1.5) continue;
+    const ux = Math.cos(d2r(A.a)), uy = Math.sin(d2r(A.a)), nx = -uy, ny = ux;
+    const off = (B.p0.x - A.p0.x) * nx + (B.p0.y - A.p0.y) * ny;
+    if (Math.abs(off) < 40 || Math.abs(off) > 250) continue;
+    const t = (p) => (p.x - A.p0.x) * ux + (p.y - A.p0.y) * uy;
+    const lo = Math.max(Math.min(t(A.p0), t(A.p1)), Math.min(t(B.p0), t(B.p1))), hi = Math.min(Math.max(t(A.p0), t(A.p1)), Math.max(t(B.p0), t(B.p1)));
+    if (hi - lo < 50) continue;
+    const key = `${Math.round(off)}:${Math.round((lo + hi) / 2 / 50)}`; if (done.has(key)) continue; done.add(key);
+    const tm = (lo + hi) / 2, x = A.p0.x + ux * tm, y = A.p0.y + uy * tm;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + nx * off, y + ny * off); ctx.stroke();
+    label(x + nx * off / 2, y + ny * off / 2, `${fmt(Math.abs(off))} mm`, '#b3261e');
+  }
+};
 
 function getCSS(name, fallback) {
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();

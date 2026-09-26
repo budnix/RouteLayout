@@ -145,6 +145,36 @@ export class Layout {
     this.emit(record ? 'change' : 'drag');
   }
   rotate(piece, deg) { this.move(piece, piece.x, piece.y, piece.rot + deg); }
+  /** Przesunięcie grupy o (dx, dy) – jeden krok undo (record) lub podgląd (drag). */
+  moveMany(pieces, dx, dy, record = true) {
+    if (record) this.pushUndo();
+    for (const p of pieces) { p.x += dx; p.y += dy; }
+    this.emit(record ? 'change' : 'drag');
+  }
+  /** Obrót grupy o deg wokół (cx, cy). */
+  rotateMany(pieces, deg, cx, cy) {
+    this.pushUndo();
+    const c = Math.cos(d2r(deg)), s = Math.sin(d2r(deg));
+    for (const p of pieces) {
+      const dx = p.x - cx, dy = p.y - cy;
+      p.x = cx + dx * c - dy * s; p.y = cy + dx * s + dy * c;
+      if (!BY_ID[p.id].turntable) p.rot = norm(p.rot + deg); else p.bridge = norm((p.bridge || 0) + deg);
+    }
+    this.emit('change');
+  }
+  removeMany(pieces) {
+    const set = new Set(pieces);
+    this.pushUndo();
+    this.pieces = this.pieces.filter((p) => !set.has(p));
+    this.emit('change');
+  }
+  /** Elementy, których oś toru ma choć jeden punkt w prostokącie świata. */
+  piecesInRect(x0, y0, x1, y1) {
+    const [ax, bx] = x0 < x1 ? [x0, x1] : [x1, x0], [ay, by] = y0 < y1 ? [y0, y1] : [y1, y0];
+    const out = new Set();
+    for (const s of this.worldSegments(15)) if (!out.has(s.piece) && s.pts.some(([x, y]) => x >= ax && x <= bx && y >= ay && y <= by)) out.add(s.piece);
+    return [...out];
+  }
   clear() { this.pushUndo(); this.pieces = []; this.scenery = []; this.emit('change'); }
   /** Nowy układ: elementy, nazwa i blat od zera; historia undo wyczyszczona. */
   reset(name) {

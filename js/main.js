@@ -8,6 +8,7 @@ import { closeGap, pickPartner } from './closer.js';
 import { checkLayout } from './checks.js';
 import { Train, toggleSwitch } from './train.js';
 import { printLayout, buildPrintView, removePrintView } from './print.js';
+import { encodeShare, decodeShare, shareUrl } from './share.js';
 import { SCENERY, SCENERY_GROUPS, sceneryName, drawScenery2D } from './scenery.js';
 
 const $ = (id) => document.getElementById(id);
@@ -81,23 +82,26 @@ function pieceMeta(def) {
 
 const ic = (name) => `<svg class="ic"><use href="#${name}"/></svg>`;
 
+const recent = (() => { try { return JSON.parse(localStorage.getItem('routelayout.recent')) || []; } catch { return []; } })();
+function noteRecent(key) {
+  const i = recent.indexOf(key); if (i >= 0) recent.splice(i, 1);
+  recent.unshift(key); recent.splice(6);
+  try { localStorage.setItem('routelayout.recent', JSON.stringify(recent)); } catch { /* ignoruj */ }
+  const st = palList.scrollTop; buildList(); palList.scrollTop = st;   // sekcja „ostatnio używane” na bieżąco, bez skoku listy
+}
 function buildList() {
   palList.innerHTML = '';
   palTabs.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.tab === palTab));
   $('entry-row').classList.toggle('hidden', palTab === 'scenery');
   $('system-row').classList.toggle('hidden', palTab !== 'piko');
   const section = (label) => { const h = document.createElement('div'); h.className = 'pal-section'; h.textContent = label; palList.append(h); };
+  // ostatnio używane (dla bieżącej zakładki)
+  const recentHere = recent.filter((k) => (palTab === 'scenery' ? !!SCENERY[k] : BY_ID[k] && (palTab === 'accessory' ? BY_ID[k].group === 'accessory' : BY_ID[k].group !== 'accessory'))).map((k) => (BY_ID[k] && palTab === 'piko' ? toSystem(k, system) : k));
+  if (recentHere.length) { section(t('pal.recent')); for (const k of [...new Set(recentHere)]) palList.append(SCENERY[k] ? sceneryRow(k) : pieceRow(BY_ID[k])); }
   if (palTab === 'scenery') {
     for (const g of SCENERY_GROUPS) {
       section(t('group.' + g));
-      for (const [type, def] of Object.entries(SCENERY)) if (def.group === g) {
-        const row = document.createElement('div');
-        row.className = 'pal-item'; row.dataset.type = type; row.setAttribute('role', 'listitem');
-        row.append(sceneryIcon(type));
-        row.insertAdjacentHTML('beforeend', `<div class="pal-text"><div class="pal-title">${sceneryName(type, getLang())}</div><div class="pal-desc">${t('meta.size', { w: def.w, h: def.h })}</div></div>`);
-        row.addEventListener('click', () => editor.addScenery(type));
-        palList.append(row);
-      }
+      for (const [type, def] of Object.entries(SCENERY)) if (def.group === g) palList.append(sceneryRow(type));
     }
     return;
   }
@@ -106,20 +110,31 @@ function buildList() {
     const items = CATALOG.filter((p) => p.group === g && (palTab !== 'piko' || p.system === system));
     if (!items.length) continue;
     if (palTab === 'piko') section(t('group.' + g));
-    for (const def of items) {
-      const row = document.createElement('div');
-      row.className = 'pal-item'; row.dataset.id = def.id; row.setAttribute('role', 'listitem');
-      row.innerHTML = `${pieceIcon(def)}<div class="pal-text"><div class="pal-title">${def.code}<span class="pal-id">${def.id}</span></div><div class="pal-desc">${pieceName(def)}${def.verified === false ? ' ' + t('pal.unverified') : ''}</div></div><div class="pal-meta">${pieceMeta(def)}</div>`;
-      if (def.group === 'curve') {
-        const acts = document.createElement('div'); acts.className = 'pal-actions';
-        acts.innerHTML = `<button type="button" data-entry="0" title="${t('pal.left')}">${ic('i-rotate-ccw')}</button><button type="button" data-entry="1" title="${t('pal.rightBtn')}">${ic('i-rotate-cw')}</button>`;
-        acts.querySelectorAll('button').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); editor.addPiece(def.id, +b.dataset.entry); }));
-        row.append(acts);
-      }
-      row.addEventListener('click', () => editor.addPiece(def.id, def.group === 'curve' ? 0 : +selEntry.value || 0));
-      palList.append(row);
-    }
+    for (const def of items) palList.append(pieceRow(def));
   }
+}
+function sceneryRow(type) {
+  const def = SCENERY[type];
+  const row = document.createElement('div');
+  row.className = 'pal-item'; row.dataset.type = type; row.setAttribute('role', 'listitem');
+  row.append(sceneryIcon(type));
+  row.insertAdjacentHTML('beforeend', `<div class="pal-text"><div class="pal-title">${sceneryName(type, getLang())}</div><div class="pal-desc">${t('meta.size', { w: def.w, h: def.h })}</div></div>`);
+  row.addEventListener('click', () => { noteRecent(type); editor.addScenery(type); });
+  return row;
+}
+function pieceRow(def) {
+  const row = document.createElement('div');
+  row.className = 'pal-item'; row.dataset.id = def.id; row.setAttribute('role', 'listitem');
+  row.innerHTML = `${pieceIcon(def)}<div class="pal-text"><div class="pal-title">${def.code}<span class="pal-id">${def.id}</span></div><div class="pal-desc">${pieceName(def)}${def.verified === false ? ' ' + t('pal.unverified') : ''}</div></div><div class="pal-meta">${pieceMeta(def)}</div>`;
+  const add = (entry) => { noteRecent(def.base || def.id); editor.addPiece(def.id, entry); };
+  if (def.group === 'curve') {
+    const acts = document.createElement('div'); acts.className = 'pal-actions';
+    acts.innerHTML = `<button type="button" data-entry="0" title="${t('pal.left')}">${ic('i-rotate-ccw')}</button><button type="button" data-entry="1" title="${t('pal.rightBtn')}">${ic('i-rotate-cw')}</button>`;
+    acts.querySelectorAll('button').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); add(+b.dataset.entry); }));
+    row.append(acts);
+  }
+  row.addEventListener('click', () => add(def.group === 'curve' ? 0 : +selEntry.value || 0));
+  return row;
 }
 
 function fillEntry() {
@@ -264,10 +279,35 @@ function centerOn(x, y) {
   editor.draw();
 }
 
+// ---- zaznaczanie prostokątem, wymiary, link ---------------------------------------------
+$('btn-marquee').addEventListener('click', () => {
+  if (editor.mode === 'draw') setDrawMode(false);
+  if (editor.mode === 'train') setTrainMode(false);
+  editor.setMode(editor.mode === 'marquee' ? 'edit' : 'marquee');
+});
+editor.on((kind) => { if (kind === 'mode') $('btn-marquee').classList.toggle('active', editor.mode === 'marquee'); });
+const dimsPref = (() => { try { return localStorage.getItem('routelayout.dims') === '1'; } catch { return false; } })();
+function setDims(on) { editor.dims = on; $('btn-dims').classList.toggle('active', on); try { localStorage.setItem('routelayout.dims', on ? '1' : '0'); } catch { /* ignoruj */ } editor.draw(); }
+$('btn-dims').addEventListener('click', () => setDims(!editor.dims));
+setDims(dimsPref);
+
+$('btn-share').addEventListener('click', async () => {
+  const url = shareUrl(await encodeShare(layout.toJSON()));
+  try { await navigator.clipboard.writeText(url); toast(t('share.copied'), 4000); }
+  catch { window.prompt(t('menu.share'), url); }
+});
+async function loadFromHash() {
+  const obj = await decodeShare(location.hash);
+  if (!obj) return false;
+  try { layout.load(obj); history.replaceState(null, '', location.pathname + location.search); editor.fit(); toast(t('share.loaded'), 4000); return true; }
+  catch (err) { toast(t('error.load') + errMsg(err)); return false; }
+}
+window.addEventListener('hashchange', loadFromHash);
+
 // ---- jazda próbna ---------------------------------------------------------------------
 const train = new Train(layout);
 editor.train = train;
-Object.assign(window.__routelayout, { train, setTrainMode, buildPrintView, removePrintView, shoppingList: () => shoppingList(), setSystem: (v) => { selSystem.value = v; selSystem.dispatchEvent(new Event('change')); }, getSystem: () => system });
+Object.assign(window.__routelayout, { train, setTrainMode, buildPrintView, removePrintView, shoppingList: () => shoppingList(), setSystem: (v) => { selSystem.value = v; selSystem.dispatchEvent(new Event('change')); }, getSystem: () => system, encodeShare, decodeShare, loadFromHash, recent });
 let trainRaf = null, trainLast = 0;
 function trainFrame(ts) {
   trainRaf = requestAnimationFrame(trainFrame);
@@ -357,8 +397,9 @@ $('in-sel-z').addEventListener('change', () => { const p = editor.selected; if (
 $('in-sel-g').addEventListener('change', () => { const p = editor.selected; if (p) layout.setGrade(p, Math.max(-8, Math.min(8, +$('in-sel-g').value || 0))); });
 editor.on((kind) => {
   if (kind !== 'select') return;
-  const p = editor.selected, sc = editor.selectedScenery;
-  $('sel-tools').classList.toggle('hidden', (!p && !sc) || editor.mode === 'draw');
+  const p = editor.selected, sc = editor.selectedScenery, group = editor.selection.size > 1;
+  $('sel-tools').classList.toggle('hidden', (!p && !sc && !group) || editor.mode === 'draw');
+  if (group) { $('sel-name').textContent = t('sel.group', { n: editor.selection.size }); for (const id of ['sel-size-w', 'sel-size-h', 'sel-z', 'sel-grade']) $(id).classList.add('hidden'); view3d.setSelected(null); return; }
   const tt = p && BY_ID[p.id].turntable;
   $('sel-size-w').classList.toggle('hidden', !sc && !tt);
   $('sel-size-h').classList.toggle('hidden', !sc || SCENERY[sc.type].resize === 'uniform');
@@ -475,6 +516,7 @@ applyDom();
 layout.onChange((kind) => { if (kind === 'change') layout.save(); });
 // demo tylko przy pierwszym uruchomieniu (brak zapisu); pusty zapisany układ zostaje pusty
 if (!Layout.loadSaved(layout)) { layout.name = t('default.name'); demo(); layout.save(); }
+loadFromHash();
 editor.fit();
 setMode((() => { try { return localStorage.getItem('routelayout.mode') || (innerWidth >= 900 ? 'split' : '2d'); } catch { return '2d'; } })());
 view3d.fit();

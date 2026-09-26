@@ -237,6 +237,18 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     check(BY_ID['55418'].verified !== false && BY_ID['55400'].verified === false, 'systemy: 55418 potwierdzony, pozostałe 554xx do weryfikacji');
   }
 
+  // ---- operacje grupowe (Node) ----
+  {
+    const L = new Layout(); const a = L.add('55200', { x: 100, y: 100, rot: 0 }); const b = L.attach('55200', 0, L.portOf(a, 1)); const c = L.add('55200', { x: 100, y: 600, rot: 0 });
+    const inRect = L.piecesInRect(50, 50, 600, 200);
+    check(inRect.length === 2 && inRect.includes(a) && inRect.includes(b), 'grupa: prostokąt zaznacza 2 z 3 elementów');
+    L.moveMany([a, b], 50, 20);
+    check(a.x === 150 && b.y === 120 && L.openPorts().length === 4 && L.portOf(a, 1).mate, 'grupa: przesunięcie zachowuje połączenie w grupie');
+    L.rotateMany([a, b], 90, 150, 120);
+    check(Math.abs(a.rot - 90) < 1e-9 && Math.abs(a.x - 150) < 1e-9 && L.portOf(a, 1).mate && L.portOf(a, 1).mate.piece === b, 'grupa: obrót wokół środka zachowuje połączenia');
+    L.removeMany([a, b]); check(L.pieces.length === 1 && L.pieces[0] === c, 'grupa: usunięcie'); L.undo(); check(L.pieces.length === 3, 'grupa: usunięcie cofnięte jednym krokiem');
+  }
+
   // obrotnica + wysokości (model, Node)
   {
     const L = new Layout();
@@ -540,7 +552,7 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
 
   // system torów w UI: wybór podsypki → lista 554xx, wstawianie, dopasowanie szkicu i domykanie mapują na 554xx
   await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); document.querySelector('#pal-tabs button[data-tab="piko"]').click(); window.__routelayout.setSystem('piko-a-bed'); });
-  const sysRows = await page.evaluate(() => [...document.querySelectorAll('.pal-item[data-id]')].map((e) => e.dataset.id));
+  const sysRows = await page.evaluate(() => [...new Set([...document.querySelectorAll('.pal-item[data-id]')].map((e) => e.dataset.id))]);
   await page.click('.pal-item[data-id="55400"]');
   await page.click('.pal-item[data-id="55412"] button[data-entry="0"]');
   const sysPieces = await page.evaluate(() => window.__routelayout.layout.pieces.map((p) => p.id));
@@ -551,12 +563,48 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   await page.click('#btn-finish'); await page.waitForTimeout(200);
   const sysFit = await page.evaluate(() => window.__routelayout.layout.pieces.slice(2).map((p) => p.id));
   await page.evaluate(() => window.__routelayout.setSystem('piko-a'));
-  const backRows = await page.evaluate(() => document.querySelectorAll('.pal-item[data-id^="552"]').length);
+  const backRows = await page.evaluate(() => new Set([...document.querySelectorAll('.pal-item[data-id^="552"]')].map((e) => e.dataset.id)).size);
   check(sysRows.length === 28 && sysRows.every((id) => id.startsWith('554')) && sysPieces.join() === '55400,55412', `system torów: lista ${sysRows.length}×554xx, wstawiono ${sysPieces.join('+')}`);
   check(sysFit.length > 0 && sysFit.every((id) => id.startsWith('554')) && backRows === 28, `system torów: szkic → ${sysFit.join(',')}; powrót do 552xx (${backRows} wierszy)`);
 
+  // ostatnio używane, zaznaczanie prostokątem, wymiary, link
+  await page.evaluate(() => { window.confirm = () => true; document.getElementById('btn-new').click(); document.querySelector('#pal-tabs button[data-tab="piko"]').click(); });
+  await page.click('.pal-item[data-id="55201"]');
+  const rec = await page.evaluate(() => ({ first: document.querySelector('.pal-section').textContent, firstRow: document.querySelector('.pal-item').dataset.id, saved: JSON.parse(localStorage.getItem('routelayout.recent')) }));
+  check(rec.first === 'Recently used' && rec.firstRow === '55201' && rec.saved[0] === '55201', `ostatnio używane: sekcja na górze (${rec.firstRow})`);
+  // dwa elementy w rzędzie + trzeci daleko; zaznacz prostokątem pierwsze dwa, przesuń grupę przeciągając, obróć, usuń
+  await page.evaluate(() => { const { layout, editor } = window.__routelayout; layout.clear(); const a = layout.add('55200', { x: 300, y: 300, rot: 0 }); layout.attach('55200', 0, layout.portOf(a, 1)); layout.add('55200', { x: 300, y: 800, rot: 0 }); editor.view = { scale: 0.5, ox: 60, oy: 60 }; editor.draw(); });
+  await page.click('#btn-marquee');
+  const q = await page.evaluate(() => { const { editor } = window.__routelayout; const r = editor.canvas.getBoundingClientRect(); const p0 = editor.toScreen(280, 260), p1 = editor.toScreen(900, 340); return { x0: r.left + p0.x, y0: r.top + p0.y, x1: r.left + p1.x, y1: r.top + p1.y, mode: editor.mode }; });
+  await page.mouse.move(q.x0, q.y0); await page.mouse.down(); await page.mouse.move(q.x1, q.y1, { steps: 5 }); await page.mouse.up();
+  const sel = await page.evaluate(() => ({ n: window.__routelayout.editor.selection.size, mode: window.__routelayout.editor.mode, label: document.getElementById('sel-name').textContent }));
+  // przeciągnij grupę za pierwszy element o +200 mm w x
+  const g = await page.evaluate(() => { const { editor, layout } = window.__routelayout; const r = editor.canvas.getBoundingClientRect(); const p = editor.toScreen(layout.pieces[0].x + 100, layout.pieces[0].y); const d = editor.toScreen(layout.pieces[0].x + 300, layout.pieces[0].y); return { x: r.left + p.x, y: r.top + p.y, dx: r.left + d.x, dy: r.top + d.y }; });
+  await page.mouse.move(g.x, g.y); await page.mouse.down(); await page.mouse.move(g.dx, g.dy, { steps: 8 }); await page.mouse.up();
+  const moved = await page.evaluate(() => window.__routelayout.layout.pieces.map((p) => Math.round(p.x)));
+  await page.click('#btn-rot-r');
+  const grot = await page.evaluate(() => window.__routelayout.layout.pieces.map((p) => Math.round(p.rot)));
+  await page.click('#btn-del');
+  const left = await page.evaluate(() => window.__routelayout.layout.pieces.length);
+  check(q.mode === 'marquee' && sel.n === 2 && sel.mode === 'edit' && /2/.test(sel.label), `zaznaczanie: prostokąt → ${sel.n} elementy, etykieta „${sel.label}”`);
+  check(moved[0] === 500 && moved[1] === 739 && moved[2] === 300, `zaznaczanie: przeciągnięcie grupy (${moved.join(',')})`);
+  check(grot[0] === 15 && grot[1] === 15 && grot[2] === 0 && left === 1, `zaznaczanie: obrót grupy (${grot.join(',')}) i usunięcie (zostało ${left})`);
+  // wymiary
+  await page.evaluate(() => { const { layout } = window.__routelayout; layout.clear(); layout.add('55200', { x: 300, y: 300, rot: 0 }); layout.add('55200', { x: 300, y: 361.88, rot: 0 }); layout.add('55212', { x: 800, y: 300, rot: 0 }); });
+  await page.click('#btn-dims'); await page.waitForTimeout(100);
+  const dimsOn = await page.evaluate(() => ({ on: window.__routelayout.editor.dims, pref: localStorage.getItem('routelayout.dims'), active: document.getElementById('btn-dims').classList.contains('active') }));
+  await page.screenshot({ path: path.join(OUT, 'desktop-dims.png') });
+  await page.click('#btn-dims');
+  check(dimsOn.on && dimsOn.pref === '1' && dimsOn.active, 'wymiary: tryb włączony i zapamiętany');
+  // link: koduj → dekoduj; nawigacja z #L= wczytuje układ
+  const share = await page.evaluate(async () => { const { encodeShare, decodeShare, layout } = window.__routelayout; const frag = await encodeShare(layout.toJSON()); const back = await decodeShare('#' + frag); return { frag: frag.slice(0, 2), len: frag.length, pieces: back.pieces.length, url: location.origin + location.pathname + '#' + frag }; });
+  await page.goto(share.url, { waitUntil: 'networkidle' }); await page.waitForTimeout(500);
+  const fromLink = await page.evaluate(() => ({ n: window.__routelayout.layout.pieces.length, hash: location.hash, ids: window.__routelayout.layout.pieces.map((p) => p.id).join() }));
+  check(share.frag === 'L=' && share.len < 400 && share.pieces === 3 && fromLink.n === 3 && fromLink.hash === '' && fromLink.ids === '55200,55200,55212', `link: ${share.len} znaków, wczytany z adresu (${fromLink.ids}), hash wyczyszczony`);
+
   // i18n: przełączenie na DE zmienia teksty UI i nazwy w katalogu
   const de = await page.evaluate(() => {
+    window.__routelayout.recent.length = 0; localStorage.removeItem('routelayout.recent');
     const sel = document.getElementById('sel-lang'); sel.value = 'de'; sel.dispatchEvent(new Event('change'));
     document.querySelector('#pal-tabs button[data-tab="piko"]').click();
     return { tab: document.querySelector('#pal-tabs button[data-tab="piko"]').textContent, group: document.querySelector('.pal-section').textContent,
