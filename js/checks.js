@@ -7,6 +7,7 @@
 //  edge      – tor poza blatem lub bliżej krawędzi niż EDGE_MARGIN
 
 import { BY_ID } from './catalog.js';
+import { SpatialHash } from './spatial.js';
 
 export const MAX_GRADE = 3.5;        // %
 export const MIN_CLEARANCE = 55;     // mm (H0: wagony piętrowe ~ 55–60 mm)
@@ -14,6 +15,7 @@ export const MIN_SPACING = 45;       // mm między osiami (standard PIKO 61,88)
 export const EDGE_MARGIN = 20;       // mm
 const SAME_LEVEL = 3;                // mm – jak w łączeniu portów
 const STEP = 15;                     // mm – próbkowanie osi
+const GRID_CELL = 250;               // mm – komórka siatki kandydatów (≈ długość elementu)
 
 export function checkLayout(layout) {
   const out = [];
@@ -47,21 +49,24 @@ export function checkLayout(layout) {
     }
     return false;
   };
+  // kandydaci przez siatkę przestrzenną: tylko pary segmentów, których poszerzone obwiednie dzielą komórkę
   const boxes = segs.map((s) => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const [x, y] of s.pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); } return [x0 - MIN_SPACING, y0 - MIN_SPACING, x1 + MIN_SPACING, y1 + MIN_SPACING]; });
+  const grid = new SpatialHash(GRID_CELL);
+  boxes.forEach((b, i) => grid.addBox(b[0], b[1], b[2], b[3], i));
   const reported = new Set();
-  for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
+  for (const [i, j] of grid.pairs()) {
     const A = segs[i], B = segs[j];
     if (A.piece === B.piece) continue;
     if (connected.has(key(A.piece, B.piece))) continue;
     const a = boxes[i], b = boxes[j];
     if (a[2] < b[0] || b[2] < a[0] || a[3] < b[1] || b[3] < a[1]) continue;
     // najbliższa para próbek
-    let best = null;
+    let best = null, bestD2 = MIN_SPACING * MIN_SPACING;   // bez sqrt w pętli wewnętrznej
     for (const p of A.pts) for (const q of B.pts) {
-      const d = Math.hypot(p[0] - q[0], p[1] - q[1]);
-      if (!best || d < best.d) best = { d, p, q };
+      const dx = p[0] - q[0], dy = p[1] - q[1], d2 = dx * dx + dy * dy;
+      if (d2 <= bestD2) { bestD2 = d2; best = { d: Math.sqrt(d2), p, q }; }
     }
-    if (!best || best.d > MIN_SPACING) continue;
+    if (!best) continue;
     const dz = Math.abs((best.p[2] || 0) - (best.q[2] || 0));
     const k = key(A.piece, B.piece);
     if (reported.has(k)) continue;

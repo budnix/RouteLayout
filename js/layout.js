@@ -1,6 +1,7 @@
 // Model układu: elementy z transformacją, porty w układzie świata, łączenie,
 // undo/redo, serializacja, zestawienie części.
 
+import { SpatialHash } from './spatial.js';
 import { BY_ID, geoOf, sampleSegment, segmentLength, TURNTABLE_ID } from './catalog.js';
 import { SCENERY, sceneryHit } from './scenery.js';
 
@@ -26,12 +27,13 @@ export class Layout {
     this.undoStack = [];
     this.redoStack = [];
     this._portCache = null;
+    this._segCache = new Map();   // step -> worldSegments(step); czyszczony razem z portami
   }
 
   // ---- zdarzenia ----
   onChange(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
   emit(kind = 'change') {
-    this._portCache = null;
+    this._portCache = null; this._segCache.clear();
     // każdy listener osobno: awaria jednego (np. WebGL) nie może przerwać operacji ani pozostałych
     for (const fn of this.listeners) {
       try { fn(kind, this); } catch (err) { console.error('listener', kind, err); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('routelayout:error', { detail: err })); }
@@ -72,21 +74,20 @@ export class Layout {
   static portZ(piece, idx) { return (piece.z || 0) + (idx === 0 || BY_ID[piece.id].turntable ? 0 : (piece.dz || 0)); }
   static pieceLength(piece) { const g = geoOf(piece); return g.segments.length ? segmentLength(g.segments[0]) : 0; }
 
-  /** Wszystkie porty świata + informacja o połączeniu (cache). */
+  /** Wszystkie porty świata + informacja o połączeniu (cache). Parowanie przez siatkę przestrzenną: ~O(n). */
   ports() {
     if (this._portCache) return this._portCache;
-    const all = [];
+    const all = [], byPiece = new Map();
+    const grid = new SpatialHash(SNAP_DIST * 4);
     for (const piece of this.pieces) {
-      const n = geoOf(piece).ports.length;
-      for (let i = 0; i < n; i++) all.push({ ...Layout.worldPort(piece, i), mate: null });
+      const n = geoOf(piece).ports.length, list = [];
+      for (let i = 0; i < n; i++) { const port = { ...Layout.worldPort(piece, i), mate: null }; all.push(port); list.push(port); grid.add(port.x, port.y, port); }
+      byPiece.set(piece, list);
     }
-    // O(n²) wystarcza dla kilkuset elementów
-    for (let i = 0; i < all.length; i++) {
-      const a = all[i];
+    for (const a of all) {
       if (a.mate) continue;
-      for (let j = i + 1; j < all.length; j++) {
-        const b = all[j];
-        if (b.mate || b.piece === a.piece) continue;
+      for (const b of grid.near(a.x, a.y)) {
+        if (b === a || b.mate || b.piece === a.piece) continue;
         if (Math.hypot(a.x - b.x, a.y - b.y) > SNAP_DIST) continue;
         if (Math.abs(norm(a.a - b.a + 180)) > SNAP_ANG) continue;
         if (Math.abs(a.z - b.z) > SNAP_Z) continue;
@@ -94,10 +95,13 @@ export class Layout {
       }
     }
     this._portCache = all;
+    this._portsByPiece = byPiece;
     return all;
   }
   openPorts() { return this.ports().filter((p) => !p.mate); }
-  portOf(piece, idx) { return this.ports().find((p) => p.piece === piece && p.idx === idx); }
+  /** Porty jednego elementu (indeks = numer portu). */
+  portsOf(piece) { this.ports(); return this._portsByPiece.get(piece) || []; }
+  portOf(piece, idx) { return this.portsOf(piece)[idx] || null; }
 
   /** Transformacja, przy której port `entry` nowego elementu pokrywa się z `target` (kierunki przeciwne). */
   static poseFor(articleId, entry, target) {
@@ -215,7 +219,7 @@ export class Layout {
         best = { d, pose: Layout.poseFor(piece.id, i, target), rim: { tt, angle: Math.round(a) } };
       }
     }
-    if (best?.rim) { const { tt, angle } = best.rim; if (!tt.angles.some((x) => Math.abs(norm(x - angle)) < 0.5)) { tt.angles.push(angle); this._portCache = null; } }
+    if (best?.rim) { const { tt, angle } = best.rim; if (!tt.angles.some((x) => Math.abs(norm(x - angle)) < 0.5)) { tt.angles.push(angle); this._portCache = null; this._segCache.clear(); } }
     return best ? best.pose : null;
   }
 
@@ -238,7 +242,7 @@ export class Layout {
       const piece = queue.shift();
       if (seen.has(piece)) continue;
       seen.add(piece);
-      for (const port of this.ports()) if (port.piece === piece && port.mate && !seen.has(port.mate.piece) && port.mate.piece !== block) queue.push(port.mate.piece);
+      for (const port of this.portsOf(piece)) if (port.mate && !seen.has(port.mate.piece) && port.mate.piece !== block) queue.push(port.mate.piece);
     }
     return seen;
   }
@@ -247,7 +251,7 @@ export class Layout {
     const delta = z - (piece.z || 0);
     if (!delta) return;
     this.pushUndo();
-    const group = this.reachable(this.ports().filter((p) => p.piece === piece));
+    const group = this.reachable(this.portsOf(piece));
     group.add(piece);
     for (const p of group) p.z = (p.z || 0) + delta;
     this.emit('change');
@@ -259,7 +263,7 @@ export class Layout {
     const dz = (pct / 100) * len, delta = dz - (piece.dz || 0);
     if (!delta) return;
     this.pushUndo();
-    const exits = this.ports().filter((p) => p.piece === piece && p.idx !== 0);
+    const exits = this.portsOf(piece).filter((p) => p.idx !== 0);
     const down = this.reachable(exits, piece);
     piece.dz = dz;
     for (const p of down) p.z = (p.z || 0) + delta;
@@ -296,8 +300,10 @@ export class Layout {
   }
 
   // ---- geometria świata do rysowania ----
-  /** Lista { piece, seg, pts:[[x,y],...] } dla wszystkich segmentów. */
+  /** Lista { piece, seg, pts:[[x,y,z],...] } dla wszystkich segmentów (cache per `step`, unieważniany przy każdej zmianie). */
   worldSegments(step = 8) {
+    const cached = this._segCache.get(step);
+    if (cached) return cached;
     const out = [];
     for (const piece of this.pieces) {
       for (const seg of geoOf(piece).segments) {
@@ -307,6 +313,7 @@ export class Layout {
         out.push({ piece, seg, pts });
       }
     }
+    this._segCache.set(step, out);
     return out;
   }
 

@@ -266,6 +266,49 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     check(M.pieces[0].angles.length === 1 && M.pieces[1].z === 50, 'obrotnica/wysokości: zapis i odczyt JSON');
   }
 
+  // ---- wydajność: siatka przestrzenna vs. brute force (Node) ----
+  {
+    const { checkLayout } = await import('../js/checks.js');
+    const { SpatialHash } = await import('../js/spatial.js');
+    const build = (rows, cols) => {
+      const L = new Layout(); L.setBoard(cols * 1500, rows * 800);
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        let p = L.add('55200', { x: 300 + c * 1400, y: 200 + r * 750, rot: 0 }); let cur = { piece: p, idx: 1 };
+        for (const id of ['55200', '55200', '55212', '55212', '55212', '55212', '55212', '55212', '55200', '55220', '55200', '55212', '55212', '55212', '55212', '55212', '55212']) { p = L.attach(id, 0, L.portOf(cur.piece, cur.idx)); cur = { piece: p, idx: 1 }; }
+      }
+      // dwa niepołączone tory blisko siebie + skrzyżowanie: musi być coś do zgłoszenia
+      L.add('55200', { x: 320, y: 120, rot: 0 }); L.add('55200', { x: 500, y: 100, rot: 40 });
+      return L;
+    };
+    const brutePairs = (L) => {
+      const all = L.ports(), pairs = new Set();
+      for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
+        const a = all[i], b = all[j];
+        if (a.piece !== b.piece && Math.hypot(a.x - b.x, a.y - b.y) <= 0.6 && Math.abs(((a.a - b.a + 180 + 540) % 360) - 180) <= 1 && Math.abs(a.z - b.z) <= 3) pairs.add(`${a.piece.uid}:${a.idx}-${b.piece.uid}:${b.idx}`);
+      }
+      return pairs;
+    };
+    const small = build(5, 4), big = build(10, 8);
+    const gridPairs = new Set(small.ports().filter((p) => p.mate && p.piece.uid < p.mate.piece.uid).map((p) => `${p.piece.uid}:${p.idx}-${p.mate.piece.uid}:${p.mate.idx}`));
+    const ref = brutePairs(small);
+    check(gridPairs.size === ref.size && [...gridPairs].every((k) => ref.has(k)), `spatial: parowanie portów = brute force (${gridPairs.size} par, ${small.pieces.length} elementów)`);
+    check(small.portOf(small.pieces[3], 1) === small.ports().find((p) => p.piece === small.pieces[3] && p.idx === 1), 'spatial: portOf przez mapę zwraca ten sam obiekt');
+    // pary z siatki ⊇ pary o przecinających się obwiedniach
+    const boxes = [[0, 0, 100, 100], [90, 90, 200, 200], [500, 500, 600, 600], [-50, 150, 20, 260], [95, 0, 105, 300]];
+    const g = new SpatialHash(250); boxes.forEach((b, i) => g.addBox(b[0], b[1], b[2], b[3], i));
+    const gp = new Set(g.pairs().map(([a, b]) => `${a}-${b}`));
+    const overlaps = []; for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) { const a = boxes[i], b = boxes[j]; if (!(a[2] < b[0] || b[2] < a[0] || a[3] < b[1] || b[3] < a[1])) overlaps.push(`${i}-${j}`); }
+    check(overlaps.length === 3 && overlaps.every((k) => gp.has(k)) && !gp.has('0-2'), 'spatial: pairs() zawiera każdą przecinającą się parę obwiedni i pomija odległe');
+    const probs = checkLayout(small);
+    check(probs.some((p) => p.type === 'collision') && probs.some((p) => p.type === 'spacing'), `checks: siatka znajduje kolizję i za mały odstęp (${probs.length} problemów)`);
+    const best = (fn, n = 5) => { let b = Infinity; for (let i = 0; i < n; i++) { const t0 = performance.now(); fn(); b = Math.min(b, performance.now() - t0); } return b; };
+    const tPortsS = best(() => { small._portCache = null; small.ports(); }), tPortsB = best(() => { big._portCache = null; big.ports(); });
+    const tChkS = best(() => { small._segCache.clear(); checkLayout(small); }), tChkB = best(() => { big._segCache.clear(); checkLayout(big); });
+    check(tPortsB / tPortsS < 8, `perf: ports() ${small.pieces.length}→${big.pieces.length} elementów: ${tPortsS.toFixed(2)}→${tPortsB.toFixed(2)} ms (4× elementów, < 8× czasu)`);
+    check(tChkB / tChkS < 8, `perf: checkLayout ${tChkS.toFixed(1)}→${tChkB.toFixed(1)} ms (4× elementów, < 8× czasu)`);
+    check(tChkB < 500, `perf: checkLayout na ${big.pieces.length} elementach < 500 ms (${tChkB.toFixed(0)} ms)`);
+  }
+
   // ---- struktura UI: pionowe plastry (Node, statycznie) ----
   {
     const uiDir = path.join(ROOT, 'js', 'ui');
