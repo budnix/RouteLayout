@@ -6,6 +6,7 @@
 // Przejście na tor równoległy (61,88 mm): odnoga rozjazdu + drugi rozjazd wejściem odnogą.
 
 import { BY_ID, geoOf } from './catalog.js';
+import { baseSystem } from './profile.js';
 import { Layout } from './layout.js';
 
 // `bend` = port wejściowy łuków R9: 1 dla mijanki w lewo, 0 dla lustrzanej w prawo (łuk portem 1 skręca w drugą stronę)
@@ -24,16 +25,28 @@ const crossover = (first, second) => [
   { id: second, entry: 2, from: [0, 2] },        // drugi rozjazd wjeżdża odnogą: tory równoległe co 61,88 mm
 ];
 
-export const TEMPLATES = {
-  sidingLeft: { steps: siding('55220', '55221', 1), exit: [4, 0] },
-  sidingRight: { steps: siding('55221', '55220', 0), exit: [4, 0] },
-  crossoverLeft: { steps: crossover('55220', '55221'), exit: [0, 1] },
-  crossoverRight: { steps: crossover('55221', '55220'), exit: [0, 1] },
+// Szablony per system bazowy (numery mapuje paleta przez toCurrentSystem). Setrack: mijanka nie domyka się
+// dokładnie w katalogu (4×167,6 ≠ 672), więc tylko przejścia na tor równoległy (67 mm).
+export const TEMPLATES_BY_SYSTEM = {
+  'piko-a': {
+    sidingLeft: { steps: siding('55220', '55221', 1), exit: [4, 0] },
+    sidingRight: { steps: siding('55221', '55220', 0), exit: [4, 0] },
+    crossoverLeft: { steps: crossover('55220', '55221'), exit: [0, 1] },
+    crossoverRight: { steps: crossover('55221', '55220'), exit: [0, 1] },
+  },
+  'peco-setrack': {
+    crossoverLeft: { steps: crossover('ST-241', 'ST-240'), exit: [0, 1] },
+    crossoverRight: { steps: crossover('ST-240', 'ST-241'), exit: [0, 1] },
+  },
 };
+export const TEMPLATES = TEMPLATES_BY_SYSTEM['piko-a'];
+/** Szablony dostępne w danym systemie torów (po systemie bazowym). */
+export function templatesFor(system) { return TEMPLATES_BY_SYSTEM[baseSystem(system)] || {}; }
+const findTemplate = (key) => { for (const set of Object.values(TEMPLATES_BY_SYSTEM)) if (set[key]) return set[key]; return null; };
 
 /** Buduje elementy szablonu (bez uid) od pozy startowej { x, y, a, z }; zwraca { pieces, exit } (port końca toru głównego). */
-export function buildTemplate(key, start) {
-  const tpl = TEMPLATES[key];
+export function buildTemplate(key, start, system = null) {
+  const tpl = (system ? templatesFor(system)[key] : null) || findTemplate(key);
   const pieces = [];
   let prevExit = { x: start.x, y: start.y, a: start.a, z: start.z || 0 };
   for (const step of tpl.steps) {
@@ -48,14 +61,14 @@ export function buildTemplate(key, start) {
 }
 
 /** Lista kodów elementów szablonu (do opisu w palecie i BOM). */
-export function templateCodes(key) {
+export function templateCodes(key, system = null) {
   const counts = new Map();
-  for (const s of TEMPLATES[key].steps) counts.set(s.id, (counts.get(s.id) || 0) + 1);
+  for (const s of ((system ? templatesFor(system)[key] : null) || findTemplate(key)).steps) counts.set(s.id, (counts.get(s.id) || 0) + 1);
   return [...counts.entries()].map(([id, n]) => `${n}× ${BY_ID[id].code}`).join(', ');
 }
 
 /** Segmenty świata szablonu zbudowanego od (0,0) – do miniatury. */
-export function templateOutline(key) {
-  const { pieces } = buildTemplate(key, { x: 0, y: 0, a: 0 });
+export function templateOutline(key, system = null) {
+  const { pieces } = buildTemplate(key, { x: 0, y: 0, a: 0 }, system);
   return pieces.flatMap((p) => geoOf(p).segments.map((seg) => ({ piece: p, seg })));
 }

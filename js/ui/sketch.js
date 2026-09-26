@@ -22,7 +22,7 @@ export function init(app) {
 
   // normalizacja linii – domyślnie włączona
   const fixPref = { on: prefs.get('fix', '1') !== '0' };
-  function applyFixPref() { editor.normalizer = fixPref.on ? (pts) => normalizeStroke(pts, layout) : null; $('chk-fix').checked = fixPref.on; }
+  function applyFixPref() { editor.normalizer = fixPref.on ? (pts) => normalizeStroke(pts, layout, { system: app.getSystem() }) : null; $('chk-fix').checked = fixPref.on; }
   $('chk-fix').addEventListener('change', (e) => { fixPref.on = e.target.checked; prefs.set('fix', fixPref.on ? '1' : '0'); applyFixPref(); });
   applyFixPref();
 
@@ -43,7 +43,7 @@ export function init(app) {
     editor.finishStroke();   // kreska w toku (brak pointerup) nie może przepaść
     if (!editor.strokes.length) { toast(t('draw.empty'), 4000); return; }
     let result;
-    try { result = fitStrokes(editor.strokes, layout, { normalize: fixPref.on }); }
+    try { result = fitStrokes(editor.strokes, layout, { normalize: fixPref.on, system: app.getSystem() }); }
     catch (err) { console.error(err); toast(t('error.generic', { msg: errMsg(err) })); return; }
     window.__railsketch.lastFit = result;
     const { pieces } = result;

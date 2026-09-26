@@ -22,7 +22,7 @@ A web app (HTML5, ES modules, Canvas 2D + three.js) for designing H0 model railw
 
 ## Features
 
-- Complete **PIKO A-Gleis H0** catalog (552xx series) with exact geometry: straights, curves R1–R4 / R9, 7.5° curves, standard, curved, three-way and Y turnouts, double slip, crossings, flex track, buffer stop
+- Track systems: complete **PIKO A-Gleis H0** catalog (552xx, and the 554xx roadbed series), plus **PECO Setrack OO/HO** (ST-2xx, 22.5° geometry); the sketch fitter, loop closer and templates follow the selected system. PIKO A-Gleis with exact geometry: straights, curves R1–R4 / R9, 7.5° curves, standard, curved, three-way and Y turnouts, double slip, crossings, flex track, buffer stop
 - **Auto-drawing**: pick a piece, tap *Insert* — it snaps onto the active open track end at the correct angle. Tap any open end (e.g. a turnout branch) to continue from there
 - **Sketch mode**: draw the track path freehand with a finger or mouse, press *Finish drawing* and the app fits real PIKO pieces to it — straights, curves and turnouts where a second stroke branches off — a curved turnout when the branch leaves a curve, a double slip or K30 crossing where two strokes cross at 15° / 30°. Optional guide grid with configurable spacing
 - **Test run**: a train (loco + two wagons) drives along the track in 2D and 3D; tap a turnout to throw it, set the speed, reverse; it stops at dead ends — the quickest way to check that a layout actually works

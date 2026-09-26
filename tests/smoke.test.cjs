@@ -155,6 +155,49 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     check(pa.length === 3 && pa[1].type === 'arc' && pa[1].radius.r === 421.88 && pa[1].sweep === 30 && pa[1].dir === -1, 'brzeg: R2 30° w prawo z szumem → R2 30° w prawo (' + JSON.stringify(pa.map((p) => p.type === 'arc' ? [p.radius.r, p.sweep, p.dir] : Math.round(p.L))) + ')');
   }
 
+  // ---- PECO Setrack OO/HO: katalog, profil, algorytmy per system (Node) ----
+  {
+    const { profileFor } = await import('../js/profile.js');
+    const { closeGap } = await import('../js/closer.js');
+    const { buildTemplate, templatesFor } = await import('../js/templates.js');
+    const { toSystem, SYSTEMS } = await import('../js/catalog.js');
+    const pk = profileFor('piko-a');
+    check(pk.straights.map((x) => x[0]).join() === '55200,55201,55202,55203,55204,55205,55206' && pk.turnouts.join() === '55220,55221' && pk.crossings['15'] === '55224' && pk.crossings['30'] === '55241' && pk.headingUnit === 15 && Math.abs(pk.turnoutLen - 239.07) < 1e-9 && pk.radii.length === 5, 'profil: PIKO A z katalogu = dawne tabele (proste, rozjazdy, DKW/K30, 15°, 239,07)');
+    check(profileFor('piko-a-bed') === pk, 'profil: PIKO z podsypką dzieli profil bazowy piko-a');
+    const st = profileFor('peco-setrack');
+    check(st.radii.map((r) => r.r).join() === '371,438,505,571.5' && st.headingUnit === 11.25 && st.turnoutLen === 168 && st.turnouts.length === 2 && st.crossings['22.5'] === 'ST-250' && st.curvedTurnouts.length === 1, `profil: Setrack – promienie 371/438/505/571,5, jednostka 11,25°, rozjazd 168 mm (${JSON.stringify(st.radii.map((r) => r.r))})`);
+    // 16 × ST-220 = pełny okrąg
+    const L = new Layout(); L.setBoard(2000, 2000);
+    let cur = L.add('ST-220', { x: 1000, y: 300, rot: 0 });
+    for (let i = 1; i < 16; i++) cur = L.attach('ST-220', 0, L.portOf(cur, 1));
+    check(L.pieces.length === 16 && L.openPorts().length === 0, `Setrack: 16 × ST-220 (22,5°) zamyka okrąg (${L.openPorts().length} otwartych)`);
+    // rozjazd + przeciwłuk = tor równoległy ≈ 67 mm; przejście przez odnogi = szablon
+    const M = new Layout(); const w = M.add('ST-240', { x: 0, y: 0, rot: 0 }); const c = M.attach('ST-225', 0, M.portOf(w, 2)); const off = Math.abs(M.portOf(c, 1).y);
+    check(Math.abs(off - 67) < 0.5, `Setrack: ST-240 + ST-225 przeciwłuk → tor równoległy w ${off.toFixed(2)} mm (katalogowe 67)`);
+    const tpl = templatesFor('peco-setrack');
+    check(Object.keys(tpl).join() === 'crossoverLeft,crossoverRight' && Object.keys(templatesFor('piko-a-bed')).length === 4, 'szablony: Setrack ma przejścia, PIKO (obie odmiany) cztery szablony');
+    const X = new Layout(); X.addMany(buildTemplate('crossoverLeft', { x: 0, y: 0, a: 0 }, 'peco-setrack').pieces);
+    check(X.pieces.every((p) => p.id.startsWith('ST-')) && X.openPorts().length === 4, 'szablony: przejście Setrack z ST-241 + ST-240, odnogi połączone');
+    // solver domykania w Setrack: luka 168 mm → ST-200
+    const G = new Layout(); const a = G.add('ST-200', { x: 0, y: 0, rot: 0 }); const b = G.add('ST-200', { x: 336, y: 0, rot: 0 });
+    const r = closeGap(G.portOf(a, 1), G.portOf(b, 0), 4, 'peco-setrack');
+    check(r.ok && r.pieces.length === 1 && r.pieces[0].id === 'ST-200', `solver: luka 168 mm w Setrack domknięta ${r.pieces.map((p) => p.id).join('+')}`);
+    // szkic w Setrack: prosta + łuk ~438 mm / 90° → ST-225 × 4, bez numerów PIKO
+    const d2r = (d) => d * Math.PI / 180;
+    const pts = []; for (let x = 100; x <= 600; x += 6) pts.push([x, 300]);
+    for (let t = 1.5; t <= 90; t += 1.5) pts.push([600 + 438 * Math.sin(d2r(t)), 300 + 438 - 438 * Math.cos(d2r(t))]);
+    const f = fitStrokes([pts], new Layout(), { system: 'peco-setrack' });
+    const ids = f.pieces.map((p) => p.id);
+    const r2deg = ids.reduce((a, i) => a + (i === 'ST-225' ? 22.5 : i === 'ST-226' ? 45 : i === 'ST-227' ? 11.25 : 0), 0);
+    check(ids.length && ids.every((i) => i.startsWith('ST-')) && r2deg === 90 && !ids.some((i) => /^ST-2[23][0-9]$/.test(i) && !/^ST-22[5-7]$/.test(i)), `szkic Setrack: łuk R2 90° z elementów R2 (${ids.join(',')})`);
+    const f2 = fitStrokes([pts], new Layout());
+    check(f2.pieces.every((p) => p.id.startsWith('552')), 'szkic: bez opcji system wraca do PIKO (profil nie przecieka między wywołaniami)');
+    check(toSystem('55200', 'peco-setrack') === '55200' && SYSTEMS['peco-setrack'].parallel === 67, 'toSystem: inna marka zostawia numer bez zmian; rozstaw Setrack 67 mm');
+    const { parsePartList } = await import('../js/partlist.js');
+    const pl = parsePartList('4 x ST-200\nST 225;8\n');
+    check(pl.items.length === 2 && pl.items.find((i) => i.id === 'ST-225').n === 8, 'partlist: numery ST-xxx rozpoznawane');
+  }
+
   // ---- szablony: geometria domyka się dokładnie (Node) ----
   {
     const { TEMPLATES, buildTemplate } = await import('../js/templates.js');
@@ -289,7 +332,7 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   {
     const { CATALOG, BY_ID, toSystem, SYSTEMS } = await import('../js/catalog.js');
     const bed = CATALOG.filter((p) => p.system === 'piko-a-bed');
-    check(Object.keys(SYSTEMS).length === 2 && bed.length === 28 && bed.every((b) => BY_ID[b.base].geo === b.geo && b.id === '554' + b.base.slice(3)), `systemy: ${bed.length} elementów 554xx z geometrią 552xx`);
+    check(Object.keys(SYSTEMS).length === 3 && bed.length === 28 && bed.every((b) => BY_ID[b.base].geo === b.geo && b.id === '554' + b.base.slice(3)), `systemy: ${bed.length} elementów 554xx z geometrią 552xx`);
     check(toSystem('55200', 'piko-a-bed') === '55400' && toSystem('55412', 'piko-a') === '55212' && toSystem('TT', 'piko-a-bed') === 'TT' && toSystem('55280', 'piko-a-bed') === '55280', 'systemy: mapowanie 552↔554, obrotnica i kozioł bez zmian');
     check(BY_ID['55418'].verified !== false && BY_ID['55400'].verified === false, 'systemy: 55418 potwierdzony, pozostałe 554xx do weryfikacji');
   }
@@ -774,9 +817,22 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     return { tab: document.querySelector('#pal-tabs button[data-tab="piko"]').textContent, group: document.querySelector('.pal-section').textContent, group2: document.querySelectorAll('.pal-section')[1].textContent,
       piece: document.querySelector('.pal-item[data-id] .pal-desc').textContent, tpl: document.querySelector('.pal-item[data-template] .pal-title').textContent, lang: document.documentElement.lang };
   });
-  check(de.lang === 'de' && de.tab.includes('PIKO') && de.group === 'Vorlagen' && de.group2 === 'Gerade Gleise' && de.piece.includes('Gerades Gleis') && de.tpl.includes('Ausweichgleis'), 'i18n: przełączenie na DE tłumaczy UI, szablony i katalog');
+  check(de.lang === 'de' && de.tab.includes('Gleise') && de.group === 'Vorlagen' && de.group2 === 'Gerade Gleise' && de.piece.includes('Gerades Gleis') && de.tpl.includes('Ausweichgleis'), 'i18n: przełączenie na DE tłumaczy UI, szablony i katalog');
   const pl = await page.evaluate(() => { const sel = document.getElementById('sel-lang'); sel.value = 'pl'; sel.dispatchEvent(new Event('change')); return document.querySelector('#pal-tabs button[data-tab="scenery"]').textContent; });
   check(pl.includes('Sceneria'), 'i18n: powrót do PL');
+
+  // ---- wybór systemu PECO Setrack w palecie: wiersze ST-, szablony, wstawianie, nagłówek ----
+  {
+    await page.evaluate(() => { const { layout, editor } = window.__railsketch; editor.cursor = null; editor.selected = null; layout.clear(); window.__railsketch.setSystem('peco-setrack'); });
+    await page.click('#pal-tabs button[data-tab="piko"]'); await page.waitForTimeout(150);
+    const st = await page.evaluate(() => ({ ids: [...document.querySelectorAll('#pal-list .pal-item[data-id]')].map((r) => r.dataset.id), tpls: document.querySelectorAll('#pal-list .pal-item[data-template]').length, brand: document.querySelector('.brand .sub').textContent }));
+    check(st.ids.length >= 19 && st.ids.every((i) => i.startsWith('ST-')) && st.tpls === 2 && /PECO/.test(st.brand), `Setrack UI: paleta pokazuje ${st.ids.length} elementów ST-, 2 szablony, nagłówek „${st.brand}”`);
+    await page.click('#pal-list .pal-item[data-id="ST-200"]'); await page.click('#pal-list .pal-item[data-id="ST-225"]'); await page.waitForTimeout(150);
+    const ins = await page.evaluate(() => window.__railsketch.layout.pieces.map((p) => p.id));
+    check(ins.join() === 'ST-200,ST-225', `Setrack UI: wstawianie z palety (${ins.join(',')})`);
+    await page.evaluate(() => { window.__railsketch.layout.clear(); window.__railsketch.setSystem('piko-a'); });
+    await page.waitForTimeout(100);
+  }
 
   // ---- szablony w palecie: wiersz, wstawienie na aktywnym końcu, jeden krok undo ----
   {

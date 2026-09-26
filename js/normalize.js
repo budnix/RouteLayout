@@ -7,11 +7,14 @@
 // Etap 2 – elementy: łuk = n × element o tym promieniu; prosta = optymalny
 // zestaw prostych (DP: najmniejszy błąd długości i najmniej elementów).
 
-import { BY_ID, R as RAD } from './catalog.js';
+import { BY_ID } from './catalog.js';
 import { Layout, norm } from './layout.js';
+import { current } from './profile.js';
 
 const d2r = (d) => (d * Math.PI) / 180;
 const r2d = (r) => (r * 180) / Math.PI;
+/** Aktywny profil systemu torów (proste, promienie, rozjazdy) – ustawiany przez useSystem() w punktach wejścia. */
+const P = () => current.p;
 
 const CURV_WIN = 7;              // ±7 próbek × 5 mm = okno 70 mm
 const TAN_WIN = 8;               // wygładzanie stycznej ±8 próbek
@@ -20,19 +23,7 @@ const K_CURVE = 1 / 1300;        // powyżej → łuk (histereza)
 const MIN_SEG = 90;              // krótsze segmenty scalamy z sąsiadem [mm]
 const MIN_STRAIGHT = 25;         // krótszą prostą pomijamy [mm]
 const MIN_SWEEP = 9;             // łuk o mniejszym kącie traktujemy jako prostą [°] (R9 15° po wygładzeniu daje ~12°)
-const R_MIN_REAL = RAD.R1 * 0.8; // łuk ciaśniejszy niż 80% R1 nie istnieje w palecie → to drżenie, nie zamiar
-
-// promienie katalogowe i elementy łukowe dla nich: [id, kąt]
-const RADII = [
-  { r: RAD.R1, pieces: [['55211', 30], ['55215', 7.5]] },
-  { r: RAD.R2, pieces: [['55212', 30], ['55218', 7.5]] },
-  { r: RAD.R3, pieces: [['55213', 30]] },
-  { r: RAD.R4, pieces: [['55214', 30]] },
-  { r: RAD.R9, pieces: [['55219', 15]] },
-];
-// proste do dekompozycji (bez przejściówek i flexa)
-const STRAIGHT_PIECES = ['55200', '55201', '55202', '55203', '55204', '55205', '55206'].map((id) => [id, BY_ID[id].len]);
-const TURNOUT_LEN = BY_ID['55220'].len ?? 239.07;
+// R_MIN_REAL (80 % najmniejszego promienia palety), RADII, STRAIGHT_PIECES i TURNOUT_LEN pochodzą z profilu: P().minRealR, P().radii, P().straights, P().turnoutLen
 
 // ---- etap 1: prymitywy ---------------------------------------------------------
 
@@ -137,7 +128,7 @@ export function segment(stroke, step = 5, debug = false) {
 function dropUnbuildable(pts, tan, prims, step) {
   const sweepOf = (p) => { let a = 0; for (let j = p.i0; j < p.i1; j++) a += norm(tan[j + 1] - tan[j]); return Math.abs(a); };
   return prims.map((p, k) => {
-    if (p.type !== 'arc' || p.r >= R_MIN_REAL || sweepOf(p) >= 45) return p;
+    if (p.type !== 'arc' || p.r >= P().minRealR || sweepOf(p) >= 45) return p;
     const prev = prims[k - 1], next = prims[k + 1];
     const persists = prev?.type === 'line' && next?.type === 'line' && Math.abs(norm(next.a - prev.a)) > 8;
     return persists ? p : fitPrim(pts, p.i0, p.i1, 0);
@@ -288,6 +279,7 @@ function solve3(M, v) {
 // ---- snap ---------------------------------------------------------------------
 
 function snapRadius(r) {
+  const RADII = P().radii;
   let best = RADII[0];
   for (const c of RADII) if (Math.abs(Math.log(r / c.r)) < Math.abs(Math.log(r / best.r))) best = c;
   return best;
@@ -313,7 +305,7 @@ export function idealPath(stroke, prims, startPose, snapStart = true) {
     // kierunek startu z dopasowanej prostej (odporny na szum), inaczej średnia stycznych z początku
     let a0 = prims[0].a;
     if (prims[0].type !== 'line') { let sx = 0, sy = 0; for (let j = 0; j < Math.min(10, stroke.tan.length); j++) { sx += Math.cos(d2r(stroke.tan[j])); sy += Math.sin(d2r(stroke.tan[j])); } a0 = r2d(Math.atan2(sy, sx)); }
-    pose.a = norm(Math.round(a0 / 15) * 15);
+    const u = P().headingUnit; pose.a = norm(Math.round(a0 / u) * u);
   }
   const start = { ...pose };
   const out = [];
@@ -364,6 +356,7 @@ function arcSweep(stroke, prims, i) {
 
 /** Optymalny zestaw prostych o sumie ≈ L (DP po długości w mm). */
 export function decomposeStraight(L, piecePenalty = 8) {
+  const STRAIGHT_PIECES = P().straights;
   const target = Math.round(L);
   if (target < 20) return [];
   const maxLen = target + 70;
@@ -427,4 +420,4 @@ export function chain(list, startPose) {
   return { pieces, end: pose };
 }
 
-export { TURNOUT_LEN, RADII };
+export const profile = P;

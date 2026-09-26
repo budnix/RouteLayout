@@ -32,6 +32,7 @@ export function parsePartList(text) {
 /** Numer artykułu PIKO (dowolny system) albo kod geometrii jako osobne słowo. */
 function findArticle(line) {
   for (const m of line.matchAll(/\b(55\d{3})\b/g)) if (BY_ID[m[1]]) return m[1];
+  for (const m of line.matchAll(/\bST[-\s]?(\d{1,4})\b/gi)) if (BY_ID['ST-' + m[1]]) return 'ST-' + m[1];
   for (const tok of line.toUpperCase().split(/[^A-Z0-9]+/)) { const id = CODE_BY_TEXT.get(tok); if (id) return id; }
   return null;
 }

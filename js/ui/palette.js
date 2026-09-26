@@ -5,7 +5,7 @@ import { CATALOG, BY_ID, sampleSegment, SYSTEMS, DEFAULT_SYSTEM, toSystem } from
 import { t, pieceName, getLang } from '../i18n.js';
 import { Layout } from '../layout.js';
 import { SCENERY, SCENERY_GROUPS, sceneryName, drawScenery2D } from '../scenery.js';
-import { TEMPLATES, buildTemplate, templateCodes, templateOutline } from '../templates.js';
+import { templatesFor, buildTemplate, templateCodes, templateOutline } from '../templates.js';
 import { $, prefs } from './app.js';
 
 const PIKO_SECTIONS = ['straight', 'curve', 'turnout', 'crossing', 'flex'];
@@ -50,8 +50,8 @@ function pieceMeta(def) {
 }
 
 /** Miniatura szablonu: obrysy wszystkich jego elementów przeskalowane do 60×34. */
-function templateIcon(key) {
-  const polys = templateOutline(key).map(({ piece, seg }) => sampleSegment(seg, 12).map(([x, y]) => { const w = Layout.localToWorld(piece, x, y); return [w.x, w.y]; }));
+function templateIcon(key, system) {
+  const polys = templateOutline(key, system).map(({ piece, seg }) => sampleSegment(seg, 12).map(([x, y]) => { const w = Layout.localToWorld(piece, x, y); return [w.x, w.y]; }));
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const poly of polys) for (const [x, y] of poly) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
   const sc = Math.min(54 / Math.max(1, maxX - minX), 28 / Math.max(1, maxY - minY));
@@ -72,7 +72,9 @@ export function init(app) {
     for (const [key, def] of Object.entries(SYSTEMS)) selSystem.append(new Option(def.name[getLang()] || def.name.en, key));
     selSystem.value = system;
   }
-  selSystem.addEventListener('change', () => { system = selSystem.value; prefs.set('system', system); buildList(); });
+  const brand = () => { const el = document.querySelector('.brand .sub'); if (el) el.textContent = `H0 · ${SYSTEMS[system].short}`; };
+  selSystem.addEventListener('change', () => { system = selSystem.value; prefs.set('system', system); buildList(); brand(); });
+  brand();
 
   function noteRecent(key) {
     const i = recent.indexOf(key); if (i >= 0) recent.splice(i, 1);
@@ -96,7 +98,7 @@ export function init(app) {
       }
       return;
     }
-    if (palTab === 'piko') { section(t('group.template')); for (const key of Object.keys(TEMPLATES)) palList.append(templateRow(key)); }
+    if (palTab === 'piko') { const tpls = Object.keys(templatesFor(system)); if (tpls.length) { section(t('group.template')); for (const key of tpls) palList.append(templateRow(key)); } }
     const groups = palTab === 'piko' ? PIKO_SECTIONS : ['accessory'];
     for (const g of groups) {
       const items = CATALOG.filter((p) => p.group === g && (palTab !== 'piko' || p.system === system));
@@ -118,14 +120,14 @@ export function init(app) {
   function insertTemplate(key) {
     const port = editor.cursorPort();
     const start = port ? { x: port.x, y: port.y, a: port.a, z: port.z || 0 } : (() => { const c = editor.toWorld(editor.canvas.width / editor.dpr / 2, editor.canvas.height / editor.dpr / 2); return { x: c.x, y: c.y, a: 0, z: 0 }; })();
-    const { pieces, exit } = buildTemplate(key, start);
+    const { pieces, exit } = buildTemplate(key, start, system);
     const mapped = app.toCurrentSystem(pieces);
     return editor.addTemplate(mapped, { piece: mapped[pieces.indexOf(exit.piece)], idx: exit.idx });
   }
   function templateRow(key) {
     const row = document.createElement('div');
     row.className = 'pal-item'; row.dataset.template = key; row.setAttribute('role', 'listitem');
-    row.innerHTML = `${templateIcon(key)}<div class="pal-text"><div class="pal-title">${t('tpl.' + key)}</div><div class="pal-desc">${templateCodes(key)}</div></div><div class="pal-meta">${TEMPLATES[key].steps.length} ${t('tpl.pcs')}</div>`;
+    row.innerHTML = `${templateIcon(key, system)}<div class="pal-text"><div class="pal-title">${t('tpl.' + key)}</div><div class="pal-desc">${templateCodes(key, system)}</div></div><div class="pal-meta">${templatesFor(system)[key].steps.length} ${t('tpl.pcs')}</div>`;
     row.addEventListener('click', () => insertTemplate(key));
     return row;
   }

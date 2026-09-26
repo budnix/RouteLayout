@@ -142,8 +142,8 @@ const items = [
   { id: '55204', code: 'G107', name: { pl: 'Prosta 107,32 mm (tor równoległy do K30)', en: 'Straight 107.32 mm (parallel track for K30)', de: 'Gerades Gleis 107,32 mm (Parallelgleis zur K30)' }, group: 'straight', geo: straight(G.G107), len: G.G107 },
   { id: '55205', code: 'G62', name: { pl: 'Prosta 61,88 mm (łącznik między BW R3 i R4)', en: 'Straight 61.88 mm (filler between curved turnouts R3/R4)', de: 'Gerades Gleis 61,88 mm (Verbindungsstück zwischen Bogenweichen R3/R4)' }, group: 'straight', geo: straight(G.G62), len: G.G62 },
   { id: '55206', code: 'G31', name: { pl: 'Prosta 30,94 mm', en: 'Straight 30.94 mm', de: 'Gerades Gleis 30,94 mm' }, group: 'straight', geo: straight(G.G31), len: G.G31 },
-  { id: '55207', code: 'ÜG', name: { pl: 'Przejściówka do starego toru Piko 62 mm', en: 'Transition track to old PIKO track, 62 mm', de: 'Übergangsgleis zum alten PIKO-Gleis, 62 mm' }, group: 'straight', geo: straight(G.G62), len: G.G62 },
-  { id: '55208', code: 'ÜG', name: { pl: 'Przejściówka (profil 2,5 mm) 62 mm', en: 'Transition track (2.5 mm profile), 62 mm', de: 'Übergangsgleis (Profil 2,5 mm), 62 mm' }, group: 'straight', geo: straight(G.G62), len: G.G62 },
+  { id: '55207', code: 'ÜG', name: { pl: 'Przejściówka do starego toru Piko 62 mm', en: 'Transition track to old PIKO track, 62 mm', de: 'Übergangsgleis zum alten PIKO-Gleis, 62 mm' }, group: 'straight', geo: straight(G.G62), len: G.G62, special: true },
+  { id: '55208', code: 'ÜG', name: { pl: 'Przejściówka (profil 2,5 mm) 62 mm', en: 'Transition track (2.5 mm profile), 62 mm', de: 'Übergangsgleis (Profil 2,5 mm), 62 mm' }, group: 'straight', geo: straight(G.G62), len: G.G62, special: true },
   { id: '55209', code: 'G940', name: { pl: 'Flex 940 mm (prosto)', en: 'Flex track 940 mm (straight)', de: 'Flexgleis 940 mm (gerade)' }, group: 'flex', geo: straight(940), len: 940, flex: true },
 
   // Łuki
@@ -172,7 +172,33 @@ const items = [
 
   // Akcesoria z geometrią
   { id: '55280', code: 'PB', name: { pl: 'Kozioł oporowy (nasadzany na prostą)', en: 'Buffer stop (clips onto a straight)', de: 'Prellbock (auf gerades Gleis aufsteckbar)' }, group: 'accessory', geo: straight(G.G62), len: G.G62, bumper: true },
+  // ---- PECO Setrack OO/HO (Code 100, seria ST-2xx) --------------------------------
+  // Geometria z opisów handlowych PECO (2026): proste 168 / 335 / 79 / 41 mm, łuki 22,5° o promieniach
+  // 371 / 438 / 505 / 571,5 mm (16 na okrąg; podwójne 45°, połówki 11,25°), rozjazdy R2 22,5° długości 168 mm,
+  // Y 2×11,25° R 859,6, krzyżownica 22,5° 168 mm. Rozstaw torów równoległych 67 mm. Rozjazdy łukowe: promienie
+  // R2/R3 potwierdzone, kąt przyjęty 22,5° – verified:false. Strona PECO była niedostępna z kontenera; sprawdź przed zamówieniem.
+  { id: 'ST-200', system: 'peco-setrack', code: 'ST-200', name: { pl: 'Prosta 168 mm', en: 'Standard straight 168 mm', de: 'Gerades Gleis 168 mm' }, group: 'straight', geo: straight(168), len: 168 },
+  { id: 'ST-201', system: 'peco-setrack', code: 'ST-201', name: { pl: 'Prosta podwójna 335 mm', en: 'Double straight 335 mm', de: 'Doppelgerade 335 mm' }, group: 'straight', geo: straight(335), len: 335 },
+  { id: 'ST-202', system: 'peco-setrack', code: 'ST-202', name: { pl: 'Prosta krótka 79 mm', en: 'Short straight 79 mm', de: 'Kurze Gerade 79 mm' }, group: 'straight', geo: straight(79), len: 79 },
+  { id: 'ST-203', system: 'peco-setrack', code: 'ST-203', name: { pl: 'Prosta specjalna 41 mm (między rozjazdami łukowymi)', en: 'Special short straight 41 mm (between curved turnouts)', de: 'Sondergerade 41 mm (zwischen Bogenweichen)' }, group: 'straight', geo: straight(41), len: 41 },
+  { id: 'ST-205', system: 'peco-setrack', code: 'ST-205', name: { pl: 'Prosta izolująca 168 mm (z wyłącznikiem)', en: 'Isolating straight 168 mm (with switch)', de: 'Trenngleis 168 mm (mit Schalter)' }, group: 'straight', geo: straight(168), len: 168, special: true },
+  { id: 'ST-220', system: 'peco-setrack', code: 'ST-220', name: { pl: 'Łuk R1 371 mm / 22,5°', en: 'Curve 1st radius 371 mm / 22.5°', de: 'Bogen R1 371 mm / 22,5°' }, group: 'curve', geo: curve(371, 22.5, +1), r: 371, deg: 22.5 },
+  { id: 'ST-221', system: 'peco-setrack', code: 'ST-221', name: { pl: 'Łuk podwójny R1 371 mm / 45°', en: 'Double curve 1st radius 371 mm / 45°', de: 'Doppelbogen R1 371 mm / 45°' }, group: 'curve', geo: curve(371, 45, +1), r: 371, deg: 45 },
+  { id: 'ST-222', system: 'peco-setrack', code: 'ST-222', name: { pl: 'Łuk połówkowy R1 371 mm / 11,25°', en: 'Half curve 1st radius 371 mm / 11.25°', de: 'Halbbogen R1 371 mm / 11,25°' }, group: 'curve', geo: curve(371, 11.25, +1), r: 371, deg: 11.25 },
+  { id: 'ST-225', system: 'peco-setrack', code: 'ST-225', name: { pl: 'Łuk R2 438 mm / 22,5°', en: 'Curve 2nd radius 438 mm / 22.5°', de: 'Bogen R2 438 mm / 22,5°' }, group: 'curve', geo: curve(438, 22.5, +1), r: 438, deg: 22.5 },
+  { id: 'ST-226', system: 'peco-setrack', code: 'ST-226', name: { pl: 'Łuk podwójny R2 438 mm / 45°', en: 'Double curve 2nd radius 438 mm / 45°', de: 'Doppelbogen R2 438 mm / 45°' }, group: 'curve', geo: curve(438, 45, +1), r: 438, deg: 45 },
+  { id: 'ST-227', system: 'peco-setrack', code: 'ST-227', name: { pl: 'Łuk połówkowy R2 438 mm / 11,25°', en: 'Half curve 2nd radius 438 mm / 11.25°', de: 'Halbbogen R2 438 mm / 11,25°' }, group: 'curve', geo: curve(438, 11.25, +1), r: 438, deg: 11.25 },
+  { id: 'ST-230', system: 'peco-setrack', code: 'ST-230', name: { pl: 'Łuk R3 505 mm / 22,5°', en: 'Curve 3rd radius 505 mm / 22.5°', de: 'Bogen R3 505 mm / 22,5°' }, group: 'curve', geo: curve(505, 22.5, +1), r: 505, deg: 22.5 },
+  { id: 'ST-231', system: 'peco-setrack', code: 'ST-231', name: { pl: 'Łuk podwójny R3 505 mm / 45°', en: 'Double curve 3rd radius 505 mm / 45°', de: 'Doppelbogen R3 505 mm / 45°' }, group: 'curve', geo: curve(505, 45, +1), r: 505, deg: 45 },
+  { id: 'ST-235', system: 'peco-setrack', code: 'ST-235', name: { pl: 'Łuk R4 571,5 mm / 22,5°', en: 'Curve 4th radius 571.5 mm / 22.5°', de: 'Bogen R4 571,5 mm / 22,5°' }, group: 'curve', geo: curve(571.5, 22.5, +1), r: 571.5, deg: 22.5 },
+  { id: 'ST-241', system: 'peco-setrack', code: 'ST-241', name: { pl: 'Rozjazd lewy R2 438 mm / 22,5°, 168 mm', en: 'Left turnout, 2nd radius 438 mm / 22.5°, 168 mm', de: 'Weiche links R2 438 mm / 22,5°, 168 mm' }, group: 'turnout', geo: turnout(168, 438, 22.5, +1) },
+  { id: 'ST-240', system: 'peco-setrack', code: 'ST-240', name: { pl: 'Rozjazd prawy R2 438 mm / 22,5°, 168 mm', en: 'Right turnout, 2nd radius 438 mm / 22.5°, 168 mm', de: 'Weiche rechts R2 438 mm / 22,5°, 168 mm' }, group: 'turnout', geo: turnout(168, 438, 22.5, -1) },
+  { id: 'ST-245', system: 'peco-setrack', code: 'ST-245', name: { pl: 'Rozjazd łukowy lewy R2/R3', en: 'Left curved turnout R2/R3', de: 'Bogenweiche links R2/R3' }, group: 'turnout', geo: curvedTurnout(505, 438, 22.5, +1), verified: false },
+  { id: 'ST-244', system: 'peco-setrack', code: 'ST-244', name: { pl: 'Rozjazd łukowy prawy R2/R3', en: 'Right curved turnout R2/R3', de: 'Bogenweiche rechts R2/R3' }, group: 'turnout', geo: curvedTurnout(505, 438, 22.5, -1), verified: false },
+  { id: 'ST-247', system: 'peco-setrack', code: 'ST-247', name: { pl: 'Rozjazd Y 2×11,25°, R 859,6 mm', en: 'Y turnout 2×11.25°, R 859.6 mm', de: 'Y-Weiche 2×11,25°, R 859,6 mm' }, group: 'turnout', geo: wye(859.6, 11.25) },
+  { id: 'ST-250', system: 'peco-setrack', code: 'ST-250', name: { pl: 'Krzyżownica 22,5°, 168 mm', en: 'Medium crossing 22.5°, 168 mm', de: 'Kreuzung 22,5°, 168 mm' }, group: 'crossing', geo: crossing(168, 22.5) },
 ];
+
 
 // Odbicia lustrzane łuków (skręt w prawo) nie są osobnymi artykułami: fizyczny
 // łuk obraca się. W edytorze łuk "w prawo" uzyskujemy przez wejście portem 1.
@@ -209,9 +235,12 @@ export function geoOf(piece) {
 // Ten sam katalog geometrii obsługuje kilka systemów. PIKO A-Gleis z podsypką
 // (seria 554xx) ma identyczną geometrię, a numer = 552xx + 200 (potwierdzone dla
 // 55418 = R2 7,5°; pozostałe numery oznaczone do weryfikacji przed zamówieniem).
+// `profile` = system bazowy o tej samej geometrii (algorytmy liczą profil z katalogu bazowego, numery mapuje toSystem);
+// `parallel` = rozstaw torów równoległych, `short` = etykieta w nagłówku, `gauge` = rozstaw szyn.
 export const SYSTEMS = {
-  'piko-a': { name: { pl: 'PIKO A-Gleis (bez podsypki, 552xx)', en: 'PIKO A-Gleis (no roadbed, 552xx)', de: 'PIKO A-Gleis (ohne Bettung, 552xx)' } },
-  'piko-a-bed': { name: { pl: 'PIKO A-Gleis z podsypką (554xx)', en: 'PIKO A-Gleis with roadbed (554xx)', de: 'PIKO A-Gleis mit Bettung (554xx)' }, suffix: { pl: ' (z podsypką)', en: ' (roadbed)', de: ' (Bettung)' } },
+  'piko-a': { name: { pl: 'PIKO A-Gleis (bez podsypki, 552xx)', en: 'PIKO A-Gleis (no roadbed, 552xx)', de: 'PIKO A-Gleis (ohne Bettung, 552xx)' }, short: 'PIKO A', parallel: 61.88, gauge: 16.5 },
+  'piko-a-bed': { name: { pl: 'PIKO A-Gleis z podsypką (554xx)', en: 'PIKO A-Gleis with roadbed (554xx)', de: 'PIKO A-Gleis mit Bettung (554xx)' }, suffix: { pl: ' (z podsypką)', en: ' (roadbed)', de: ' (Bettung)' }, short: 'PIKO A', parallel: 61.88, gauge: 16.5, profile: 'piko-a' },
+  'peco-setrack': { name: { pl: 'PECO Setrack OO/HO (Code 100, ST-2xx)', en: 'PECO Setrack OO/HO (Code 100, ST-2xx)', de: 'PECO Setrack OO/HO (Code 100, ST-2xx)' }, short: 'PECO Setrack', parallel: 67, gauge: 16.5 },
 };
 export const DEFAULT_SYSTEM = 'piko-a';
 for (const it of items) if (!it.system) it.system = it.id.startsWith('552') ? 'piko-a' : 'common';

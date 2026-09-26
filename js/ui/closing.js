@@ -15,7 +15,7 @@ export function init(app) {
     if (!A) return;
     const B = pickPartner(layout, A);
     if (!B) { toast(t('close.noPartner'), 5000); return; }
-    const r = closeGap(A, B);
+    const r = closeGap(A, B, 4, app.getSystem());
     if (!r.ok) { toast(t('close.fail', { d: r.error.d.toFixed(1), da: r.error.da.toFixed(1) }), 8000); return; }
     layout.addMany(app.toCurrentSystem(r.pieces));
     editor.cursor = null; editor.selected = null; editor.emit('select'); editor.emit('cursor'); editor.draw();
@@ -34,7 +34,7 @@ export function init(app) {
       if (i === j) continue;
       const A = open[i], B = open[j];
       if (Math.hypot(A.x - B.x, A.y - B.y) > 320 || Math.abs(norm(A.a - B.a + 180)) > 70) continue;
-      const r = closeGap(A, B);
+      const r = closeGap(A, B, 4, app.getSystem());
       if (r.ok) { layout.addMany(app.toCurrentSystem(r.pieces)); toast(t('close.auto', { list: listIds(r.pieces) }), 5000); return true; }
     }
     return false;
