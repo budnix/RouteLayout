@@ -2,6 +2,18 @@
 
 RouteLayout is a static web app for planning H0 model-railway layouts on PIKO A-Gleis track with a 3D preview. Live: https://budnix.github.io/RouteLayout/ . This file explains how the code is organised, the conventions that are not obvious from reading it, and the traps previous agents fell into. Read it before changing anything.
 
+## Keeping this file true
+
+**Whenever you change a rule, a convention, a threshold or a trap described here, update the corresponding paragraph in the same commit.** A knowledge file that lags behind the code is worse than none: the next agent will "fix" behaviour that is deliberate, or trust a trap that no longer exists. Concretely:
+
+- New constant in `normalize.js` / `fitter.js` (`MIN_SWEEP`, `R_MIN_REAL`, tolerances…) → its line in *Sketch mode and the normaliser*.
+- New `localStorage` key, JSON field or format version → *UI conventions* / *Geometry and coordinate conventions*.
+- New module or workflow → *Repository map* / *CI / deployment*.
+- A test that caught a non-obvious failure → add the lesson to *Testing → Traps*.
+- A limitation removed or added → *Known limitations*.
+
+Reviewers: a PR that changes any of the above without touching `AGENTS.md` is incomplete.
+
 ## Hard constraints (do not break)
 
 - **Static site, no build step, no bundler, no framework.** ES modules loaded straight from `index.html`. Anyone must be able to `python3 -m http.server` and run it.
