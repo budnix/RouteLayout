@@ -11,6 +11,7 @@ export const norm = (a) => ((a % 360) + 540) % 360 - 180; // do (-180, 180]
 const SNAP_DIST = 0.6;   // mm – porty uznajemy za połączone
 const SNAP_ANG = 1.0;    // stopnie
 const SNAP_Z = 3;        // mm – różnica wysokości, przy której porty jeszcze się łączą
+const LEVEL_GAP = 30;    // mm – większa przerwa między wysokościami końców = osobny poziom
 const RIM_TOL = 14;      // mm – tolerancja dociągania do obrzeża obrotnicy
 const STORAGE_KEY = 'routelayout.v1';
 export const DEFAULT_BOARD_COLOR = '#5f8f4a';
@@ -324,11 +325,41 @@ export class Layout {
     return { minX, minY, maxX, maxY };
   }
 
-  /** Test trafienia: element, którego oś toru leży w promieniu r od (x,y). */
-  hitTest(x, y, r = 12) {
+  /** Zakres wysokości elementu [zmin, zmax] (początek i koniec; obrotnica: płasko). */
+  static zRange(piece) {
+    const n = geoOf(piece).ports.length; let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < n; i++) { const z = Layout.portZ(piece, i); lo = Math.min(lo, z); hi = Math.max(hi, z); }
+    return n ? [lo, hi] : [piece.z || 0, piece.z || 0];
+  }
+  /** Czy element należy do przedziału wysokości { min, max } (przecięcie zakresów; null = wszystko). */
+  static inLevel(piece, level) {
+    if (!level) return true;
+    const [lo, hi] = Layout.zRange(piece);
+    return hi >= level.min - 1e-6 && lo <= level.max + 1e-6;
+  }
+  /**
+   * Poziomy układu: wysokości końców elementów zgrupowane w skupienia (przerwa > LEVEL_GAP mm zaczyna nowy poziom).
+   * Zwraca [{ z, min, max, count }] rosnąco; pojedynczy płaski układ = jeden poziom.
+   */
+  levels(gap = LEVEL_GAP) {
+    const zs = [];
+    for (const piece of this.pieces) { const [lo, hi] = Layout.zRange(piece); zs.push(lo, hi); }
+    zs.sort((a, b) => a - b);
+    const out = [];
+    for (const z of zs) {
+      const cur = out[out.length - 1];
+      if (cur && z - cur.max <= gap) { cur.max = z; cur.sum += z; cur.count++; }
+      else out.push({ min: z, max: z, sum: z, count: 1 });
+    }
+    return out.map((c) => ({ z: Math.round(c.sum / c.count), min: c.min, max: c.max, count: c.count }));
+  }
+
+  /** Test trafienia: element, którego oś toru leży w promieniu r od (x,y); `filter(piece)` pozwala pominąć elementy (np. spoza poziomu). */
+  hitTest(x, y, r = 12, filter = null) {
     let best = null;
-    for (const tt of this.pieces) if (BY_ID[tt.id].turntable && Math.hypot(x - tt.x, y - tt.y) < tt.r - 10) best = { d: 0, piece: tt };
+    for (const tt of this.pieces) if (BY_ID[tt.id].turntable && (!filter || filter(tt)) && Math.hypot(x - tt.x, y - tt.y) < tt.r - 10) best = { d: 0, piece: tt };
     for (const s of this.worldSegments(6)) {
+      if (filter && !filter(s.piece)) continue;
       for (const [px, py] of s.pts) {
         const d = Math.hypot(px - x, py - y);
         if (d < r && (!best || d < best.d)) best = { d, piece: s.piece };

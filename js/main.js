@@ -12,10 +12,11 @@ import * as trainmode from './ui/trainmode.js';
 import * as closing from './ui/closing.js';
 import * as selection from './ui/selection.js';
 import * as menu from './ui/menu.js';
+import * as levels from './ui/levels.js';
 import * as offline from './ui/offline.js';
 
 const app = createApp();
-for (const slice of [palette, topbar, sketch, problems, tools, trainmode, closing, selection, menu, offline]) slice.init(app);
+for (const slice of [palette, topbar, sketch, problems, tools, trainmode, closing, selection, menu, levels, offline]) slice.init(app);
 
 const { layout, editor, view3d } = app;
 

@@ -309,6 +309,25 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
     check(tChkB < 500, `perf: checkLayout na ${big.pieces.length} elementach < 500 ms (${tChkB.toFixed(0)} ms)`);
   }
 
+  // ---- poziomy: grupowanie wysokości i filtr (Node) ----
+  {
+    const L = new Layout();
+    const a = L.add('55200', { x: 0, y: 0, rot: 0 });
+    const b = L.attach('55200', 0, L.portOf(a, 1));
+    const c = L.attach('55200', 0, L.portOf(b, 1));
+    L.setHeight(c, 100);                                  // c i wszystko połączone → 100 (cała grupa)
+    check(L.levels().length === 1 && L.levels()[0].z === 100, `levels: płaski układ = 1 poziom (${JSON.stringify(L.levels())})`);
+    const d = L.add('55200', { x: 0, y: 400, rot: 0 });   // osobny tor na 0
+    const e = L.add('55212', { x: 0, y: 800, rot: 0 }); L.setHeight(e, 80); L.setGrade(e, 5);   // rampa 80 → ~91
+    const lv = L.levels();
+    check(lv.length === 2 && lv[0].z === 0 && lv[1].min === 80 && lv[1].max === 100, `levels: 0 mm i 80–100 mm (rampa łączy się z poziomem 100 przez przerwę < 30 mm) ${JSON.stringify(lv)}`);
+    check(Layout.inLevel(a, lv[1]) && !Layout.inLevel(d, lv[1]) && Layout.inLevel(e, lv[1]) && Layout.inLevel(d, lv[0]), 'levels: inLevel – przecięcie zakresu wysokości elementu z poziomem');
+    L.setHeight(e, 300);
+    check(L.levels().length === 3, 'levels: rampa przeniesiona na 300 mm = trzeci poziom');
+    const hitAll = L.hitTest(100, 400, 12), hitFiltered = L.hitTest(100, 400, 12, (p) => Layout.inLevel(p, lv[1]));
+    check(hitAll === d && hitFiltered === null, 'levels: hitTest z filtrem pomija elementy spoza poziomu');
+  }
+
   // ---- import listy części: AnyRail / SCARM / arkusz (Node) ----
   {
     const { parsePartList } = await import('../js/partlist.js');
@@ -701,6 +720,35 @@ const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${con
   check(de.lang === 'de' && de.tab.includes('PIKO') && de.group === 'Gerade Gleise' && de.piece.includes('Gerades Gleis'), 'i18n: przełączenie na DE tłumaczy UI i katalog');
   const pl = await page.evaluate(() => { const sel = document.getElementById('sel-lang'); sel.value = 'pl'; sel.dispatchEvent(new Event('change')); return document.querySelector('#pal-tabs button[data-tab="scenery"]').textContent; });
   check(pl.includes('Sceneria'), 'i18n: powrót do PL');
+
+  // ---- poziomy w 2D: pasek, wybór poziomu, wyszarzenie i blokada stuknięcia ----
+  {
+    await page.evaluate(() => { const { layout, editor } = window.__routelayout; window.confirm = () => true; editor.cursor = null; editor.selected = null; layout.clear();
+      const a = layout.add('55200', { x: 300, y: 300, rot: 0 }); const b = layout.add('55200', { x: 300, y: 600, rot: 0 }); layout.setHeight(b, 120); editor.view = { ox: 0, oy: 0, scale: 1 }; editor.draw(); });
+    await page.waitForTimeout(150);
+    const cnt = await page.locator('#levels-count').textContent();
+    check(cnt === '2', `levels UI: licznik poziomów na przycisku HUD = 2 („${cnt}”)`);
+    await page.click('#btn-levels'); await page.waitForTimeout(100);
+    const opts = await page.locator('#sel-level option').allTextContents();
+    check(!(await page.locator('#levels-bar').isHidden()) && opts.length === 3, `levels UI: pasek z opcjami ${JSON.stringify(opts)}`);
+    await page.selectOption('#sel-level', '120'); await page.waitForTimeout(150);
+    const lvl = await page.evaluate(() => window.__routelayout.editor.level);
+    check(lvl && lvl.min === 120 && lvl.max === 120, `levels UI: wybór poziomu ustawia filtr edytora ${JSON.stringify(lvl)}`);
+    // stuknięcie w tor na poziomie 0 nie zaznacza go; stuknięcie w tor na 120 – tak
+    const box = await page.locator('#canvas2d').boundingBox();
+    await page.mouse.click(box.x + 420, box.y + 300); await page.waitForTimeout(120);
+    const sel0 = await page.evaluate(() => window.__routelayout.editor.selected && window.__routelayout.editor.selected.z);
+    await page.mouse.click(box.x + 420, box.y + 600); await page.waitForTimeout(120);
+    const sel120 = await page.evaluate(() => window.__routelayout.editor.selected && window.__routelayout.editor.selected.z);
+    check((sel0 === null || sel0 === undefined) && sel120 === 120, `levels UI: element spoza poziomu jest nieaktywny (sel0=${sel0}, sel120=${sel120})`);
+    // wyszarzony ślad: piksel na osi toru 0 mm jest jaśniejszy/mniej nasycony niż na torze 120 mm
+    const px = await page.evaluate(() => { const c = document.getElementById('canvas2d'); const g = c.getContext('2d'); const r = devicePixelRatio || 1; const at = (x, y) => [...g.getImageData(Math.round(x * r), Math.round(y * r), 1, 1).data]; return { off: at(420, 300), on: at(420, 600) }; });
+    check(JSON.stringify(px.off) !== JSON.stringify(px.on), `levels UI: tor spoza poziomu rysowany inaczej (${px.off} vs ${px.on})`);
+    await page.click('#btn-levels'); await page.waitForTimeout(100);
+    const cleared = await page.evaluate(() => window.__routelayout.editor.level === null);
+    check(cleared && await page.locator('#levels-bar').isHidden(), 'levels UI: zamknięcie paska zdejmuje filtr');
+    await page.evaluate(() => { const { layout } = window.__routelayout; layout.clear(); });
+  }
 
   // ---- import listy części przez menu: plik → kolumna „mam” ----
   {

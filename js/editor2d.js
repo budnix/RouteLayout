@@ -30,6 +30,7 @@ export class Editor2D {
     this.selection = new Set();    // zaznaczenie grupowe (elementy toru)
     this.marquee = null;           // prostokąt zaznaczania { x0, y0, x1, y1 } (świat)
     this.dims = false;             // tryb wymiarów
+    this.level = null;             // filtr poziomu { min, max } w mm; elementy poza nim są wyszarzone i nieaktywne
     this.listeners = new Set();
     this.dpr = Math.min(devicePixelRatio || 1, 3);
 
@@ -192,11 +193,11 @@ export class Editor2D {
     }
     const w = this.toWorld(p.x, p.y);
     if (this.mode === 'draw') { this.stroke = [[w.x, w.y]]; this.drag = { start: p, moved: false, draw: true }; return; }
-    if (this.mode === 'train') { const piece = this.layout.hitTest(w.x, w.y, Math.max(14 / this.view.scale, 10)); this.drag = { start: p, moved: false, piece: null, tapPiece: piece, ox: this.view.ox, oy: this.view.oy }; return; }
+    if (this.mode === 'train') { const piece = this.layout.hitTest(w.x, w.y, Math.max(14 / this.view.scale, 10), this.levelFilter()); this.drag = { start: p, moved: false, piece: null, tapPiece: piece, ox: this.view.ox, oy: this.view.oy }; return; }
     if (this.mode === 'marquee') { this.marquee = { x0: w.x, y0: w.y, x1: w.x, y1: w.y }; this.drag = { start: p, moved: false, marquee: true }; return; }
     const tol = 14 / this.view.scale; // ~14 px
     const port = this.nearestOpenPort(w, tol);
-    const piece = this.layout.hitTest(w.x, w.y, Math.max(tol, 10));
+    const piece = this.layout.hitTest(w.x, w.y, Math.max(tol, 10), this.levelFilter());
     const rim = !port ? this.hitRim(w, tol) : null;
     const scen = !port && !piece && !rim ? this.layout.hitScenery(w.x, w.y) : null;
     this.drag = { start: p, last: p, moved: false, piece: port || rim ? null : piece, scen, port, rim, ox: this.view.ox, oy: this.view.oy, px: piece?.x ?? scen?.x, py: piece?.y ?? scen?.y };
@@ -321,6 +322,7 @@ export class Editor2D {
   nearestOpenPort(w, tol) {
     let best = null;
     for (const port of this.layout.openPorts()) {
+      if (this.level && !Layout.inLevel(port.piece, this.level)) continue;
       const d = Math.hypot(port.x - w.x, port.y - w.y);
       if (d < tol && (!best || d < best.d)) best = { d, port };
     }
@@ -377,9 +379,17 @@ export class Editor2D {
       ctx.beginPath(); ctx.arc(tt.x, tt.y, tt.r - 6, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.5; ctx.stroke();
     }
 
-    const segs = this.layout.worldSegments(8);
+    const allSegs = this.layout.worldSegments(8);
+    const inLevel = this.levelFilter();
+    const segs = inLevel ? allSegs.filter((sg) => inLevel(sg.piece)) : allSegs;
     const tracePath = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); };
     ctx.lineCap = 'butt'; ctx.lineJoin = 'round';
+    // elementy poza wybranym poziomem: blady ślad pod spodem (widać kontekst, nie można ich stuknąć)
+    if (inLevel) {
+      ctx.save(); ctx.globalAlpha = 0.28; ctx.strokeStyle = getCSS('--c-rail', '#4c4c4c'); ctx.lineWidth = 30;
+      for (const sg of allSegs) if (!inLevel(sg.piece)) { tracePath(sg.pts); ctx.stroke(); }
+      ctx.restore();
+    }
 
     // podsypka
     ctx.strokeStyle = getCSS('--c-ballast', '#c9c2b4'); ctx.lineWidth = 34;
@@ -509,6 +519,7 @@ export class Editor2D {
     const cur = this.cursorPort();
     const r = Math.max(5 / s, 4);
     for (const port of this.layout.openPorts()) {
+      if (this.level && !Layout.inLevel(port.piece, this.level)) continue;
       const isCur = cur && port.piece === cur.piece && port.idx === cur.idx;
       ctx.beginPath(); ctx.arc(port.x, port.y, isCur ? r * 1.5 : r, 0, Math.PI * 2);
       ctx.fillStyle = isCur ? getCSS('--c-accent', '#ff7a1a') : 'rgba(30,120,220,0.85)';
@@ -533,6 +544,17 @@ function tint(hex, base) {
 }
 
 /** Tryb wymiarów: długości prostych, promienie łuków, odstępy równoległych prostych, blat. */
+/** Funkcja filtrująca elementy według aktywnego poziomu (null = bez filtra). */
+Editor2D.prototype.levelFilter = function levelFilter() { const lv = this.level; return lv ? (piece) => Layout.inLevel(piece, lv) : null; };
+/** Ustawia filtr poziomu { min, max } lub null; zaznaczenie spoza poziomu jest zdejmowane. */
+Editor2D.prototype.setLevel = function setLevel(level) {
+  this.level = level;
+  if (level && this.selected && !Layout.inLevel(this.selected, level)) { this.selected = null; this.emit('select'); }
+  if (level) for (const p of [...this.selection]) if (!Layout.inLevel(p, level)) this.selection.delete(p);
+  if (level && this.cursor && this.cursor.uid) { const cp = this.cursorPort(); if (cp && !Layout.inLevel(cp.piece, level)) { this.cursor = null; this.emit('cursor'); } }
+  this.emit('level'); this.draw();
+};
+
 Editor2D.prototype.drawDims = function drawDims(ctx, s) {
   const font = `${11 / this.view.scale}px system-ui, sans-serif`;
   ctx.font = font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';

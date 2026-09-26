@@ -36,6 +36,7 @@
     <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
     <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 9h13l-3-3M20 15H7l3 3"/></symbol>
     <symbol id="i-select" viewBox="0 0 24 24"><path d="M4 4h4M10 4h4M16 4h4M4 10v4M4 16v4M20 10v4M20 16v4M4 20h4M10 20h4M16 20h4" stroke-dasharray="none"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 16l9 5 9-5"/></symbol>
     <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M3 17l14-14 4 4L7 21z"/><path d="M8 8l2 2M11 5l2 2M14 11l2 2M5 11l2 2"/></symbol>
     <symbol id="i-share" viewBox="0 0 24 24"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4M12 2v13"/></symbol>
     <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M20 20H8.5L3.6 15.1a2 2 0 0 1 0-2.8l8.5-8.5a2 2 0 0 1 2.8 0l5.7 5.7a2 2 0 0 1 0 2.8L14 19"/><path d="M6.5 12.5l6 6"/></symbol>
@@ -67,6 +68,13 @@
         <button id="btn-train" class="hud-btn" data-i18n-title="train.toggle"><svg class="ic"><use href="#i-train"/></svg></button>
         <button id="btn-marquee" class="hud-btn" data-i18n-title="sel.marquee"><svg class="ic"><use href="#i-select"/></svg></button>
         <button id="btn-dims" class="hud-btn" data-i18n-title="dims.toggle"><svg class="ic"><use href="#i-ruler"/></svg></button>
+        <button id="btn-levels" class="hud-btn" data-i18n-title="levels.toggle"><svg class="ic"><use href="#i-layers"/></svg><span id="levels-count" class="badge-mini"></span></button>
+      </div>
+      <div id="levels-bar" class="draw-bar hidden">
+        <button id="btn-level-down" data-i18n-title="levels.down"><svg class="ic"><use href="#i-minus"/></svg></button>
+        <select id="sel-level"></select>
+        <button id="btn-level-up" data-i18n-title="levels.up"><svg class="ic"><use href="#i-plus"/></svg></button>
+        <span class="hint" data-i18n="levels.hint"></span>
       </div>
       <div id="train-bar" class="draw-bar hidden">
         <button id="btn-play" class="primary" data-i18n-title="train.play"><svg class="ic"><use href="#i-play"/></svg></button>

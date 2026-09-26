@@ -111,6 +111,10 @@ select, input[type=text], input[type=number] {
 }
 .draw-bar .primary { margin-left: auto; }
 #train-bar .primary { margin-left: 0; width: 44px; padding: 0; }
+#levels-bar select { max-width: 60vw; }
+.badge-mini { position: absolute; right: 2px; bottom: 2px; font-size: 10px; line-height: 1; padding: 1px 3px; border-radius: 6px; background: var(--c-accent, #ff7a1a); color: #fff; pointer-events: none; }
+.badge-mini:empty { display: none; }
+.hud-btn { position: relative; }
 #train-bar .speed { gap: 8px; }
 #train-bar input[type=range] { width: 120px; }
 #train-bar .hint { flex: 1 0 100%; }
